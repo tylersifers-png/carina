@@ -19,11 +19,10 @@ from carina import common as sec, dataset
 from carina.drive import DriveSync, DriveSyncError, file_md5
 
 # Where the dataset sits under the sync root, locally and on Drive. Callers whose
-# layout differs pass ``staged=``. ``legacy=`` names an older pointer manifest whose
-# ``source_v1_manifest_sha256`` the local lineage may descend from (first push only).
+# layout differs pass ``staged=``.
 STAGED = "staged/company"
 
-PUSHABLE = {"local_ahead", "remote_empty", "local_ahead_of_legacy"}
+PUSHABLE = {"local_ahead", "remote_empty"}
 PULLABLE = {"remote_ahead"}
 
 
@@ -46,13 +45,7 @@ def read_remote_head(sync: DriveSync, relative: str) -> tuple[dict, str] | None:
     return json.loads(raw), sec.digest(raw)
 
 
-def classify(local, remote, legacy) -> str:
-    if remote is None and legacy is not None:
-        if local is None:
-            return "legacy_only"
-        source = legacy[0].get("source_v1_manifest_sha256")
-        known = {local[1], *local[0].get("lineage", [])}
-        return "local_ahead_of_legacy" if source in known else "diverged_from_legacy"
+def classify(local, remote) -> str:
     if local is None and remote is None:
         return "both_empty"
     if remote is None:
@@ -69,17 +62,15 @@ def classify(local, remote, legacy) -> str:
 
 
 def status(
-    sync: DriveSync, root: Path | None = None, *, staged: str = STAGED, legacy: str | None = None
+    sync: DriveSync, root: Path | None = None, *, staged: str = STAGED
 ) -> dict:
     """Read-only: how the local and Drive heads relate."""
     local = read_head(root or sync.local_root, staged)
     remote = read_remote_head(sync, staged + "/" + dataset.MANIFEST)
-    legacy = read_remote_head(sync, legacy) if remote is None and legacy else None
     return dict(
-        relation=classify(local, remote, legacy),
+        relation=classify(local, remote),
         local=local[1] if local else None,
         remote=remote[1] if remote else None,
-        legacy_source=legacy[0].get("source_v1_manifest_sha256") if legacy else None,
     )
 
 
@@ -90,9 +81,9 @@ def _upload_verified(sync: DriveSync, relative: str) -> None:
         raise DriveSyncError("Upload MD5 mismatch: " + relative)
 
 
-def push(sync: DriveSync, *, staged: str = STAGED, legacy: str | None = None) -> dict:
+def push(sync: DriveSync, *, staged: str = STAGED) -> dict:
     """Upload the local dataset if Drive's head is its ancestor. The manifest goes last."""
-    found = status(sync, staged=staged, legacy=legacy)
+    found = status(sync, staged=staged)
     if found["relation"] == "in_sync":
         return dict(found, pushed=0)
     if found["relation"] not in PUSHABLE:
@@ -163,15 +154,14 @@ def main(argv=None) -> int:
         default=os.environ.get("DRIVE_PROJECT_FOLDER_ID"),
         help="Drive folder that mirrors the data directory.",
     )
-    parser.add_argument("--legacy", help="Older Drive pointer manifest (first push only).")
     args = parser.parse_args(argv)
     sync = connect(args.drive_root_id, settings.data(), ["staged"])
     staged = DATASETS[args.dataset]
     if args.action == "status":
-        result = status(sync, staged=staged, legacy=args.legacy)
+        result = status(sync, staged=staged)
     elif args.action == "pull":
         result = pull(sync, staged=staged)
     else:
-        result = push(sync, staged=staged, legacy=args.legacy)
+        result = push(sync, staged=staged)
     print(json.dumps(result, sort_keys=True))
     return 0

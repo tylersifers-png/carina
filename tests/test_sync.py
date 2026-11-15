@@ -8,11 +8,10 @@ from carina import dataset, sync as staged_sync
 from carina.drive import DriveSync, DriveSyncError
 
 STAGED = staged_sync.STAGED
-LEGACY = "v2/current/manifest.json"
 
 
 def sync_for(root, drive):
-    return DriveSync(drive, "root", root, {"staged", "v2"})
+    return DriveSync(drive, "root", root, {"staged"})
 
 
 @pytest.fixture
@@ -26,18 +25,6 @@ def local(built, tmp_path):
 def advance(root, candidate, tmp_path, delta, name):
     head = dataset.manifest_digest(root / STAGED)
     dataset.promote(second_candidate(candidate, head, tmp_path, delta, name), root / STAGED)
-
-
-def put_file(drive, relative, raw, tmp_path):
-    """Place a file on the fake Drive at a project-relative path."""
-    parent = "root"
-    parts = relative.split("/")
-    for part in parts[:-1]:
-        found = drive.find_child(parent, part)
-        parent = (found or drive.create_folder(parent, part)).id
-    source = tmp_path / "_upload"
-    source.write_bytes(raw)
-    drive.create_file(parent, source, parts[-1])
 
 
 def find_id(drive, name):
@@ -183,26 +170,3 @@ def test_a_tampered_download_is_rejected_and_local_is_untouched(local, tmp_path)
     with pytest.raises(ValueError, match="checksum mismatch"):
         staged_sync.pull(sync_for(other, drive))
     assert not (other / STAGED).exists() and not (other / "scratch" / "pull").exists()
-
-
-def test_first_push_over_the_legacy_layout_needs_a_matching_ancestor(built, tmp_path):
-    _, _, candidate = built
-    root = tmp_path / "local"
-    manifest = dataset.convert(candidate, root / STAGED)  # parent: the flat manifest
-    parent = manifest["lineage"][0]
-    drive = MutableDrive()
-    pointer = json.dumps({"source_v1_manifest_sha256": parent}).encode()
-    put_file(drive, LEGACY, pointer, tmp_path)
-    sync = sync_for(root, drive)
-    assert staged_sync.status(sync, legacy=LEGACY)["relation"] == "local_ahead_of_legacy"
-    staged_sync.push(sync, legacy=LEGACY)
-    assert staged_sync.status(sync)["relation"] == "in_sync"
-
-    stranger = MutableDrive()
-    put_file(stranger, LEGACY, json.dumps({"source_v1_manifest_sha256": "0" * 64}).encode(), tmp_path)
-    sync = sync_for(root, stranger)
-    assert staged_sync.status(sync, legacy=LEGACY)["relation"] == "diverged_from_legacy"
-    before = len(stranger.created_files)
-    with pytest.raises(DriveSyncError, match="diverged_from_legacy"):
-        staged_sync.push(sync, legacy=LEGACY)
-    assert len(stranger.created_files) == before
