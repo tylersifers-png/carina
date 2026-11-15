@@ -1,6 +1,6 @@
 {
-  "schema": "company-fact-quarantines-1.0",
-  "records": [
+  "schema": "carina-reviews-1.0",
+  "fact_quarantines": [
     {
       "symbol": "AAPL",
       "metric": "shares_outstanding",
@@ -92,5 +92,8 @@
       "evidence_url": "https://www.sec.gov/Archives/edgar/data/79879/000007987918000039/ppg-20171231.xml",
       "evidence_sha256": "ca007c2b114d9b2d2fa89c1c2d1d199a667b74f61ecd211892fa27076d7d2bc7"
     }
-  ]
+  ],
+  "financial_acknowledgements": [],
+  "market_acknowledgements": [],
+  "market_events": []
 }

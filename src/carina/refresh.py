@@ -155,8 +155,7 @@ def replace(root, run_id, symbols):
 
 def readiness(root, tasks, fetch):
     """Probe at most three exact planned responses before requesting the panel."""
-    selected = [s for s in ("AAPL", "COST", "RSP") if s in tasks]
-    selected += [s for s in tasks if s not in selected][: 3 - len(selected)]
+    selected = list(tasks)[:3]
     samples = []
     for symbol in selected:
         cutoff, start = tasks[symbol]["through"], tasks[symbol]["start"]

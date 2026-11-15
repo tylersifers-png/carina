@@ -58,9 +58,9 @@ LIMITS = [
 ]
 
 VALIDATION_SCHEMA = "company-candidate-validation-1.0"
-# Saved assessments are reused only while the data files, these policy and
-# acknowledgement files, and the explicit detector versions are unchanged.
-VALIDATION_INPUTS = settings.DECISION_FILES
+# Saved assessments are reused only while the data files, the threshold and
+# review files, and the explicit detector versions are unchanged.
+VALIDATION_INPUTS = ("thresholds.json", "reviews.json")
 VALIDATION_LIBRARIES = ("pandas", "pyarrow", "numpy", "exchange-calendars")
 SEC_REPOSITORY = sec.REPOSITORY
 SEC_CONTACT_PATTERN = re.compile(r"[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+")
@@ -461,7 +461,8 @@ def validate_market(raw, receipt, *, expected_start=None, expected_end=None):
         "Dividends",
         "Stock Splits",
     ]
-    optional = {"Capital Gains"} if symbol == "RSP" else set()
+    # Funds report capital gain distributions; other listings omit the column.
+    optional = {"Capital Gains"}
     expected_columns = {"Date", *required}
     if set(frame.columns) not in (expected_columns, expected_columns | optional):
         raise ValueError("Unexpected market columns: " + symbol)
@@ -666,7 +667,6 @@ def verify_local_files(path, manifest, *, require_all_benchmarks=False):
         manifest["schema"] not in (SCHEMA, dataset.SCHEMA)
         or not set(manifest["companies"]) <= set(COMPANIES)
         or not manifest["companies"]
-        or not {"^GSPC", "^SP500TR"} <= set(manifest["benchmarks"])
         or not set(manifest["benchmarks"]) <= set(BENCHMARKS)
         or (require_all_benchmarks and set(manifest["benchmarks"]) != set(BENCHMARKS))
     ):

@@ -1,6 +1,6 @@
 """The ten-company approved list that company tests run against.
 
-Production reads the approved list from the current store; tests install this
+Production reads the list from the caller's collection.json; tests install this
 fixed set so they never depend on live state."""
 
 INITIAL_ROWS = [
@@ -14,7 +14,6 @@ INITIAL_ROWS = [
         'accounting_profile': 'operating_company',
         'requested_start': '1997-01-01',
         'identity_status': 'VENDOR_LISTING_CONTINUITY_NOT_CERTIFIED',
-        'selection': 'Test fixture: original ten-company panel',
     },
     {
         'symbol': 'MSFT',
@@ -26,7 +25,6 @@ INITIAL_ROWS = [
         'accounting_profile': 'operating_company',
         'requested_start': '1997-01-01',
         'identity_status': 'VENDOR_LISTING_CONTINUITY_NOT_CERTIFIED',
-        'selection': 'Test fixture: original ten-company panel',
     },
     {
         'symbol': 'JPM',
@@ -38,7 +36,6 @@ INITIAL_ROWS = [
         'accounting_profile': 'bank',
         'requested_start': '1997-01-01',
         'identity_status': 'VENDOR_LISTING_CONTINUITY_NOT_CERTIFIED',
-        'selection': 'Test fixture: original ten-company panel',
     },
     {
         'symbol': 'NVDA',
@@ -50,7 +47,6 @@ INITIAL_ROWS = [
         'accounting_profile': 'operating_company',
         'requested_start': '1999-01-22',
         'identity_status': 'VENDOR_LISTING_CONTINUITY_NOT_CERTIFIED',
-        'selection': 'Test fixture: original ten-company panel',
     },
     {
         'symbol': 'AMZN',
@@ -62,7 +58,6 @@ INITIAL_ROWS = [
         'accounting_profile': 'operating_company',
         'requested_start': '1997-05-15',
         'identity_status': 'VENDOR_LISTING_CONTINUITY_NOT_CERTIFIED',
-        'selection': 'Test fixture: original ten-company panel',
     },
     {
         'symbol': 'GOOGL',
@@ -74,7 +69,6 @@ INITIAL_ROWS = [
         'accounting_profile': 'operating_company',
         'requested_start': '2004-08-19',
         'identity_status': 'VENDOR_LISTING_CONTINUITY_NOT_CERTIFIED',
-        'selection': 'Test fixture: original ten-company panel',
     },
     {
         'symbol': 'WMT',
@@ -86,7 +80,6 @@ INITIAL_ROWS = [
         'accounting_profile': 'operating_company',
         'requested_start': '1997-01-01',
         'identity_status': 'VENDOR_LISTING_CONTINUITY_NOT_CERTIFIED',
-        'selection': 'Test fixture: original ten-company panel',
     },
     {
         'symbol': 'JNJ',
@@ -98,7 +91,6 @@ INITIAL_ROWS = [
         'accounting_profile': 'operating_company',
         'requested_start': '1997-01-01',
         'identity_status': 'VENDOR_LISTING_CONTINUITY_NOT_CERTIFIED',
-        'selection': 'Test fixture: original ten-company panel',
     },
     {
         'symbol': 'XOM',
@@ -110,7 +102,6 @@ INITIAL_ROWS = [
         'accounting_profile': 'operating_company',
         'requested_start': '1997-01-01',
         'identity_status': 'VENDOR_LISTING_CONTINUITY_NOT_CERTIFIED',
-        'selection': 'Test fixture: original ten-company panel',
     },
     {
         'symbol': 'BRK-B',
@@ -122,7 +113,6 @@ INITIAL_ROWS = [
         'accounting_profile': 'insurance_conglomerate',
         'requested_start': '1997-01-01',
         'identity_status': 'VENDOR_LISTING_CONTINUITY_NOT_CERTIFIED',
-        'selection': 'Test fixture: original ten-company panel',
     },
 ]
 

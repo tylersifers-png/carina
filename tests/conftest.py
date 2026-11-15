@@ -14,7 +14,8 @@ DECISIONS = Path(__file__).parent / "decisions"
 def carina_inputs():
     settings.reset()
     settings.configure(decisions=DECISIONS)
+    registry.reset()
     registry.COMPANIES.use(INITIAL_ROWS)
     yield
-    registry.COMPANIES.reset()
+    registry.reset()
     settings.reset()

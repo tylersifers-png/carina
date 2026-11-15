@@ -1,0 +1,102 @@
+{
+  "schema": "carina-collection-1.0",
+  "companies": [
+    {
+      "symbol": "AAPL",
+      "issuer_cik": 320193,
+      "name": "Apple",
+      "sector": "Information Technology",
+      "accounting_profile": "operating_company",
+      "requested_start": "1997-01-01"
+    },
+    {
+      "symbol": "MSFT",
+      "issuer_cik": 789019,
+      "name": "Microsoft",
+      "sector": "Information Technology",
+      "accounting_profile": "operating_company",
+      "requested_start": "1997-01-01"
+    },
+    {
+      "symbol": "JPM",
+      "issuer_cik": 19617,
+      "name": "JPMorgan Chase",
+      "sector": "Financials",
+      "accounting_profile": "bank",
+      "requested_start": "1997-01-01"
+    },
+    {
+      "symbol": "NVDA",
+      "issuer_cik": 1045810,
+      "name": "NVIDIA",
+      "sector": "Information Technology",
+      "accounting_profile": "operating_company",
+      "requested_start": "1999-01-22"
+    },
+    {
+      "symbol": "AMZN",
+      "issuer_cik": 1018724,
+      "name": "Amazon",
+      "sector": "Consumer Discretionary",
+      "accounting_profile": "operating_company",
+      "requested_start": "1997-05-15"
+    },
+    {
+      "symbol": "GOOGL",
+      "issuer_cik": 1652044,
+      "name": "Alphabet",
+      "sector": "Communication Services",
+      "accounting_profile": "operating_company",
+      "requested_start": "2004-08-19"
+    },
+    {
+      "symbol": "WMT",
+      "issuer_cik": 104169,
+      "name": "Walmart",
+      "sector": "Consumer Staples",
+      "accounting_profile": "operating_company",
+      "requested_start": "1997-01-01"
+    },
+    {
+      "symbol": "JNJ",
+      "issuer_cik": 200406,
+      "name": "Johnson & Johnson",
+      "sector": "Health Care",
+      "accounting_profile": "operating_company",
+      "requested_start": "1997-01-01"
+    },
+    {
+      "symbol": "XOM",
+      "issuer_cik": 34088,
+      "name": "Exxon Mobil",
+      "sector": "Energy",
+      "accounting_profile": "operating_company",
+      "requested_start": "1997-01-01"
+    },
+    {
+      "symbol": "BRK-B",
+      "issuer_cik": 1067983,
+      "name": "Berkshire Hathaway",
+      "sector": "Financials",
+      "accounting_profile": "insurance_conglomerate",
+      "requested_start": "1997-01-01"
+    }
+  ],
+  "benchmarks": [
+    {
+      "symbol": "^GSPC",
+      "name": "S&P 500 price",
+      "requested_start": "1997-01-01"
+    },
+    {
+      "symbol": "^SP500TR",
+      "name": "S&P 500 vendor gross total return",
+      "requested_start": "1997-01-01"
+    },
+    {
+      "symbol": "RSP",
+      "name": "Invesco S&P 500 Equal Weight ETF",
+      "requested_start": "2003-05-01"
+    }
+  ]
+}

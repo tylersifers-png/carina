@@ -15,7 +15,7 @@ import pandas as pd
 
 from carina.registry import metrics_for
 from carina import dataset
-from carina.settings import decision
+from carina import settings as decisions
 
 VERSION = "company-quality-1.1"
 
@@ -29,14 +29,12 @@ def digest(value):
 
 
 def settings():
-    return json.loads(decision("company_data_quality.json").read_text())
+    return decisions.thresholds("financial")
 
 
 def acknowledgements():
     """Recorded decisions about individual flags, each bound to its exact evidence."""
-    return json.loads(
-        decision("company_quality_acknowledgements.json").read_text()
-    )
+    return decisions.reviews("financial_acknowledgements")
 
 
 def dataset_digest(manifest):
@@ -65,12 +63,7 @@ def evaluate(
 ):
     """Assess all tracked issuers, including those not refreshed in this run."""
     policy = settings() if policy is None else policy
-    records = acknowledgements() if acknowledged is None else acknowledged
-    if (
-        policy["schema"] != "company-quality-policy-1.0"
-        or records["schema"] != "company-quality-acknowledgements-1.0"
-    ):
-        raise ValueError("Unsupported company quality policy/acknowledgement schema")
+    records = acknowledgements() if acknowledged is None else list(acknowledged)
     flags = []
 
     def add(rule, symbol, metric, basis, evidence, severity="REVIEW", period=""):
@@ -523,8 +516,8 @@ def evaluate(
             present.add(flag["id"])
     # An acknowledgement covers one flag and its exact evidence; if the evidence
     # changes the flag reopens. Block errors are never waivable.
-    decisions = {d["flag_id"]: d for d in records["decisions"]}
-    if len(decisions) != len(records["decisions"]):
+    decisions = {d["flag_id"]: d for d in records}
+    if len(decisions) != len(records):
         raise ValueError("Duplicate quality acknowledgements")
     limitations = []
     for flag in flags:

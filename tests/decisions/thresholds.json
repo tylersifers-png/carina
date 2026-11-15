@@ -1,0 +1,14 @@
+{
+  "schema": "carina-thresholds-1.0",
+  "financial": {
+    "stale_after_days": 550,
+    "share_jump_factor": 100,
+    "balance_relative_tolerance": 0.02,
+    "balance_absolute_tolerance_usd": 1000000,
+    "value_jump_factor": 100
+  },
+  "market": {
+    "large_daily_return": 0.35,
+    "adjustment_tolerance": 0.001
+  }
+}

@@ -51,19 +51,14 @@ def audit(sample, **kwargs):
         f,
         m,
         ["AAPL"],
-        acknowledged=kwargs.pop(
-            "acknowledged",
-            dict(schema="company-quality-acknowledgements-1.0", decisions=[]),
-        ),
+        acknowledged=kwargs.pop("acknowledged", []),
         data_digest=kwargs.pop("data_digest", "a" * 64),
         **kwargs,
     )
 
 
 def approval(report, disposition="validated"):
-    return dict(
-        schema="company-quality-acknowledgements-1.0",
-        decisions=[
+    return [
             dict(
                 flag_id=f["id"],
                 evidence_sha256=f["evidence_sha256"],
@@ -72,8 +67,7 @@ def approval(report, disposition="validated"):
                 evidence_refs=["fixture://source"],
             )
             for f in report["flags"]
-        ],
-    )
+    ]
 
 
 def flagged_sample(sample):
@@ -398,7 +392,7 @@ def test_excluded_acknowledgement_is_reported_as_a_limitation(sample):
 def test_incomplete_or_mismatched_acknowledgement_does_not_resolve(sample, damage):
     flagged = audit(flagged_sample(sample))
     records = approval(flagged)
-    damage(records["decisions"][0])
+    damage(records[0])
     assert audit(flagged_sample(sample), acknowledged=records)["status"] == "FLAGGED"
 
 
@@ -413,11 +407,7 @@ def test_new_issues_stay_open_when_others_are_acknowledged(sample):
 
 def test_duplicate_acknowledgements_are_rejected(sample):
     records = approval(audit(flagged_sample(sample)))
-    records["decisions"].append(dict(records["decisions"][0]))
+    records.append(dict(records[0]))
     with pytest.raises(ValueError, match="Duplicate"):
         audit(flagged_sample(sample), acknowledged=records)
 
-
-def test_unsupported_acknowledgement_schema_is_rejected(sample):
-    with pytest.raises(ValueError, match="schema"):
-        audit(sample, acknowledged=dict(schema="old", decisions=[]))

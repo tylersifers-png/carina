@@ -28,3 +28,10 @@ def test_missing_directories_are_reported(monkeypatch):
     assert str(settings.data()) == "/somewhere"
     with pytest.raises(ValueError, match="Unknown decision file"):
         settings.decision("other.json")
+
+
+def test_decision_files_are_schema_checked(tmp_path):
+    (tmp_path / "thresholds.json").write_text('{"schema": "old"}')
+    settings.configure(decisions=tmp_path)
+    with pytest.raises(ValueError, match="carina-thresholds-1.0"):
+        settings.thresholds("market")

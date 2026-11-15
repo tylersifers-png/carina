@@ -3,10 +3,18 @@
 Carina stores no data and makes no decisions about it. The caller supplies two
 directories:
 
-- the data directory, which holds ``staged/`` (the dataset), ``runs/`` (work in
-  progress) and ``receipts/`` (records of promotions); and
-- the decisions directory, which holds the JSON files that accept, quarantine or
-  acknowledge data, and the thresholds the quality checks use.
+- the data directory, which holds ``staged/`` (the datasets), ``runs/`` (work in
+  progress, deleted once a run is promoted) and ``receipts/`` (one record per
+  promotion); and
+- the decisions directory, which holds three JSON files:
+
+  ``collection.json``
+      what to collect: companies, benchmarks and macro series.
+  ``thresholds.json``
+      the limits the financial and market checks use.
+  ``reviews.json``
+      reviewed outcomes: fact quarantines, acknowledged flags and known market
+      events.
 
 Set them with ``configure`` (the command line does this from ``--data`` and
 ``--decisions``) or with the ``CARINA_DATA`` and ``CARINA_DECISIONS`` variables.
@@ -14,16 +22,20 @@ Set them with ``configure`` (the command line does this from ``--data`` and
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
-DECISION_FILES = (
-    "company_data_quality.json",
-    "company_quality_acknowledgements.json",
-    "company_fact_quarantines.json",
-    "company_market_quality.json",
-    "company_market_acknowledgements.json",
-    "company_market_events.json",
+DECISION_FILES = {
+    "collection.json": "carina-collection-1.0",
+    "thresholds.json": "carina-thresholds-1.0",
+    "reviews.json": "carina-reviews-1.0",
+}
+REVIEW_KINDS = (
+    "fact_quarantines",
+    "financial_acknowledgements",
+    "market_acknowledgements",
+    "market_events",
 )
 
 _paths: dict[str, Path] = {}
@@ -63,3 +75,26 @@ def decision(name: str) -> Path:
     if name not in DECISION_FILES:
         raise ValueError("Unknown decision file: " + name)
     return decisions() / name
+
+
+def load(name: str) -> dict:
+    """Read one decision file, checking its schema."""
+    content = json.loads(decision(name).read_bytes())
+    if content.get("schema") != DECISION_FILES[name]:
+        raise ValueError(f"{name} must have schema {DECISION_FILES[name]}")
+    return content
+
+
+def collection() -> dict:
+    return load("collection.json")
+
+
+def thresholds(kind: str) -> dict:
+    """The ``financial`` or ``market`` check limits."""
+    return dict(load("thresholds.json")[kind])
+
+
+def reviews(kind: str) -> list:
+    if kind not in REVIEW_KINDS:
+        raise ValueError("Unknown review kind: " + kind)
+    return list(load("reviews.json").get(kind, []))

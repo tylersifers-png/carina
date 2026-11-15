@@ -15,7 +15,7 @@ import exchange_calendars as xcals
 
 from carina.registry import BENCHMARKS, BENCHMARK_STARTS, company
 from carina import dataset
-from carina.settings import decision
+from carina import settings as decisions_input
 
 VERSION = "company-market-quality-1.2"
 VALUES = [
@@ -39,23 +39,18 @@ def digest(value):
 
 
 def policy():
-    return json.loads(decision("company_market_quality.json").read_bytes())
+    return decisions_input.thresholds("market")
 
 
 def acknowledgements():
     """Recorded decisions about individual flags, each bound to its exact evidence."""
-    return json.loads(
-        decision("company_market_acknowledgements.json").read_bytes()
-    )
+    return decisions_input.reviews("market_acknowledgements")
 
 
 def documented_events(symbol):
     """Known issuer events remain reviewable even when vendor actions are absent."""
-    data = json.loads(decision("company_market_events.json").read_bytes())
-    if data.get("schema") != "company-market-events-1.0":
-        raise ValueError("Unsupported documented market event schema")
     result = []
-    for event in data["events"]:
+    for event in decisions_input.reviews("market_events"):
         if set(event) != {
             "symbol",
             "session_dates",
@@ -110,16 +105,9 @@ def evaluate(
     identity_tables=None,
 ):
     settings = policy()
-    if (
-        settings.get("schema") != "company-market-policy-1.0"
-        or settings.get("scope") != "MARKET_DATA"
-    ):
-        raise ValueError("Unsupported market collection scope/policy")
-    records = acknowledgements() if acknowledged is None else acknowledged
-    if records["schema"] != "company-market-acknowledgements-1.0":
-        raise ValueError("Invalid market acknowledgement schema")
-    decisions = {d["flag_id"]: d for d in records["decisions"]}
-    if len(decisions) != len(records["decisions"]):
+    records = acknowledgements() if acknowledged is None else list(acknowledged)
+    decisions = {d["flag_id"]: d for d in records}
+    if len(decisions) != len(records):
         raise ValueError("Duplicate market acknowledgements")
     flags = []
     histories = {}
@@ -140,7 +128,7 @@ def evaluate(
     # A store can predate a newly registered benchmark.  Assess the benchmarks
     # actually declared by its manifest, rather than treating a registry
     # addition as a retroactive failure of an otherwise valid store.
-    benchmarks = ["^GSPC", "^SP500TR"] if benchmarks is None else list(benchmarks)
+    benchmarks = list(BENCHMARKS) if benchmarks is None else list(benchmarks)
     if len(benchmarks) != len(set(benchmarks)) or not set(benchmarks) <= set(
         BENCHMARKS
     ):

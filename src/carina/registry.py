@@ -1,20 +1,16 @@
 """Company identity, accounting rules, and benchmarks.
 
-Listing identifiers are vendor-scoped, not point-in-time IDs. The approved company
-list is data, read from the staged dataset's ``companies.parquet`` rather than kept
-in code."""
+Listing identifiers are vendor-scoped, not point-in-time IDs. Which companies and
+benchmarks to collect is a decision, read from the caller's ``collection.json``
+rather than kept in code."""
 
 from copy import deepcopy
-import json
 from carina import settings
 from carina.profiles import metrics_for as pilot_metrics
 from carina.fundamentals import METRICS
 
 from collections.abc import Mapping
 
-import pandas as pd
-
-STORE_COMPANIES = "staged/companies.parquet"
 IDENTITY_FIELDS = (
     "issuer_id",
     "issuer_cik",
@@ -24,41 +20,53 @@ IDENTITY_FIELDS = (
     "accounting_profile",
     "requested_start",
     "identity_status",
-    "selection",
 )
+COMPANY_FIELDS = ("symbol", "issuer_cik", "name", "sector", "accounting_profile", "requested_start")
+IDENTITY_STATUS = "VENDOR_LISTING_CONTINUITY_NOT_CERTIFIED"
 
 
-class _Registry(Mapping):
-    """Approved companies, read lazily from the current store's companies table.
+def identity(row):
+    """A company's full identity from its ``collection.json`` entry."""
+    missing = set(COMPANY_FIELDS) - set(row)
+    if missing:
+        raise ValueError(f"Company {row.get('symbol')!r} is missing {sorted(missing)}")
+    cik = int(row["issuer_cik"])
+    return dict(
+        symbol=row["symbol"],
+        issuer_id=f"sec:{cik:010d}",
+        issuer_cik=cik,
+        security_id="yahoo:" + row["symbol"],
+        name=row["name"],
+        sector=row["sector"],
+        accounting_profile=row["accounting_profile"],
+        requested_start=row["requested_start"],
+        identity_status=IDENTITY_STATUS,
+    )
 
-    The data directory must hold a staged dataset. Tests install a small fixed set with ``use`` and clear it with ``reset``.
+
+class _Lazy(Mapping):
+    """A mapping read from ``collection.json`` on first use.
+
+    Tests install a fixed set with ``use`` and clear it with ``reset``.
     """
 
-    def __init__(self):
+    def __init__(self, build):
+        self._build = build
         self._rows = None
 
     def _load(self):
         if self._rows is None:
-            path = settings.data() / STORE_COMPANIES
-            if not path.is_file():
-                raise FileNotFoundError(
-                    f"Approved company list not found at {path}"
-                )
-            self.use(pd.read_parquet(path))
+            self._rows = self._build(settings.collection())
         return self._rows
 
     def use(self, rows):
-        records = rows.to_dict("records") if hasattr(rows, "to_dict") else list(rows)
-        self._rows = {
-            r["symbol"]: {k: r.get(k, "") for k in ("symbol", *IDENTITY_FIELDS)}
-            for r in records
-        }
+        self._rows = self._build(None, rows)
 
     def reset(self):
         self._rows = None
 
-    def __getitem__(self, symbol):
-        return self._load()[symbol]
+    def __getitem__(self, key):
+        return self._load()[key]
 
     def __iter__(self):
         return iter(self._load())
@@ -67,48 +75,66 @@ class _Registry(Mapping):
         return len(self._load())
 
 
-COMPANIES = _Registry()
+def _unique(rows, what):
+    symbols = [r["symbol"] for r in rows]
+    if len(symbols) != len(set(symbols)):
+        raise ValueError(f"Duplicate {what} in collection.json")
+    return rows
 
 
-BENCHMARKS = {
-    "^GSPC": "S&P 500 price",
-    "^SP500TR": "S&P 500 vendor gross total return",
-    "RSP": "Invesco S&P 500 Equal Weight ETF (vendor-adjusted return proxy)",
-}
+def _companies(collection, rows=None):
+    rows = collection["companies"] if rows is None else rows
+    rows = rows.to_dict("records") if hasattr(rows, "to_dict") else list(rows)
+    return {r["symbol"]: identity(r) for r in _unique(rows, "companies")}
 
-# RSP began trading on 2003-05-01. It is an investable, net-of-fund-expenses
-# equal-weight total-return proxy, not an official S&P equal-weight total-return
-# index or a substitute for historic constituent membership.
-BENCHMARK_STARTS = {
-    "^GSPC": "1997-01-01",
-    "^SP500TR": "1997-01-01",
-    "RSP": "2003-05-01",
-}
+
+def _benchmarks(collection, rows=None):
+    rows = collection.get("benchmarks", []) if rows is None else list(rows)
+    return {r["symbol"]: dict(r) for r in _unique(rows, "benchmarks")}
+
+
+COMPANIES = _Lazy(_companies)
+_BENCHMARK_ROWS = _Lazy(_benchmarks)
+
+
+class _Field(Mapping):
+    """One field of each benchmark, keyed by symbol."""
+
+    def __init__(self, field):
+        self._field = field
+
+    def __getitem__(self, symbol):
+        return _BENCHMARK_ROWS[symbol][self._field]
+
+    def __iter__(self):
+        return iter(_BENCHMARK_ROWS)
+
+    def __len__(self):
+        return len(_BENCHMARK_ROWS)
+
+
+# Benchmark symbol -> description, and symbol -> first requested session.
+BENCHMARKS = _Field("name")
+BENCHMARK_STARTS = _Field("requested_start")
+
+
+def use_benchmarks(rows):
+    _BENCHMARK_ROWS.use(rows)
+
+
+def reset():
+    COMPANIES.reset()
+    _BENCHMARK_ROWS.reset()
 
 
 def quarantines_for(symbol):
-    data = json.loads(settings.decision("company_fact_quarantines.json").read_bytes())
-    if data["schema"] != "company-fact-quarantines-1.0":
-        raise ValueError("Unsupported source-fact quarantine schema")
-    return [r for r in data["records"] if r["symbol"] == symbol]
+    return [r for r in settings.reviews("fact_quarantines") if r["symbol"] == symbol]
 
 
 def company(symbol):
     if symbol not in COMPANIES:
-        raise ValueError("Outside approved company registry")
-    row = COMPANIES[symbol]
-    return dict(
-        symbol=symbol,
-        issuer_id=row["issuer_id"],
-        issuer_cik=int(row["issuer_cik"]),
-        security_id=row["security_id"],
-        name=row["name"],
-        sector=row["sector"],
-        accounting_profile=row["accounting_profile"],
-        requested_start=row["requested_start"],
-        identity_status=row["identity_status"],
-        selection=row["selection"],
-    )
+        raise ValueError("Not in collection.json: " + symbol)
+    return dict(COMPANIES[symbol])
 
 
 def metrics_for(symbol):

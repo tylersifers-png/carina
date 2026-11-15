@@ -43,7 +43,7 @@ def series():
 
 
 def acks(*decisions):
-    return dict(schema="company-market-acknowledgements-1.0", decisions=list(decisions))
+    return list(decisions)
 
 
 def decide(flag, disposition="validated", **extra):
@@ -64,7 +64,9 @@ def acknowledge_all(report):
 
 def assess(series, records=None):
     frame, sources = series
-    return market.evaluate(frame, ["AAPL"], sources, acknowledged=records or acks())
+    return market.evaluate(
+        frame, ["AAPL"], sources, benchmarks=["^GSPC", "^SP500TR"], acknowledged=records or acks()
+    )
 
 
 @pytest.mark.parametrize("failure", ["price", "gap", "source", "return", "identity"])
@@ -103,11 +105,11 @@ def test_large_move_review_is_evidence_bound(series):
     assert report["status"] == "FLAGGED"
     records = acks(decide(flag))
     assert assess((frame, sources), records)["status"] == "CLEAN"
-    records["decisions"][0]["disposition"] = "excluded"
+    records[0]["disposition"] = "excluded"
     excluded = assess((frame, sources), records)
     assert len(excluded["excluded_scopes"]) == 1
     assert excluded["excluded_scopes"][0]["evidence"] == flag["evidence"]
-    records["decisions"][0]["evidence_sha256"] = "changed"
+    records[0]["evidence_sha256"] = "changed"
     assert assess((frame, sources), records)["open_flags"] == 1
 
 
@@ -267,17 +269,13 @@ def test_documented_event_registry_requires_source_evidence(tmp_path, monkeypatc
         description="Fixture event",
         evidence_refs=[],
     )
-    path = config / "company_market_events.json"
-    path.write_text(
-        json.dumps(dict(schema="company-market-events-1.0", events=[event]))
-    )
+    path = config / "reviews.json"
+    path.write_text(json.dumps(dict(schema="carina-reviews-1.0", market_events=[event])))
     settings.configure(decisions=config)
     with pytest.raises(ValueError, match="documented market event"):
         market.documented_events("AAPL")
     event["evidence_refs"] = ["fixture://issuer"]
-    path.write_text(
-        json.dumps(dict(schema="company-market-events-1.0", events=[event]))
-    )
+    path.write_text(json.dumps(dict(schema="carina-reviews-1.0", market_events=[event])))
     assert market.documented_events("AAPL") == [event]
 
 
@@ -304,12 +302,10 @@ def test_flagged_company_is_not_clean_until_acknowledged(series):
     assert resolved["clean_companies"] == ["AAPL"] and resolved["flagged_companies"] == []
 
 
-def test_duplicate_or_unsupported_acknowledgements_are_rejected(series):
+def test_duplicate_acknowledgements_are_rejected(series):
     flag = dict(id="x", evidence_sha256="y")
     with pytest.raises(ValueError, match="Duplicate"):
         assess(series, acks(decide(flag), decide(flag)))
-    with pytest.raises(ValueError, match="schema"):
-        assess(series, dict(schema="old", decisions=[]))
 
 
 def test_only_blocking_market_flags_stop_expansion():
