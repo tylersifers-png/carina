@@ -28,7 +28,7 @@ from carina.registry import (
 
 SCHEMA = "company-current-v1.0"
 # Paths inside the data directory (see ``carina.settings``).
-STAGED = "staged"
+STAGED = "staged/company"
 RUNS = "runs"
 RECEIPTS = "receipts"
 BOUNDS = dict(max_parts=32, max_bundle=32 * 1024 * 1024)

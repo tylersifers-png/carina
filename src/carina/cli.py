@@ -7,6 +7,8 @@ Commands:
     collect | build | verify  capture SEC facts and new companies, build, verify
     macro refresh|verify    refresh macro series and record their revisions
     audit financial|market  audit a verified dataset
+    sync status|pull|push company|macro
+                            fast-forward-only Drive sync of a staged dataset
     drive download|upload   non-destructive Drive sync of explicit paths
 
 ``--data`` (or ``CARINA_DATA``) is the directory holding ``staged/``, ``runs/``
@@ -51,6 +53,12 @@ def _audit(argv):
     return kinds[argv[0]](argv[1:])
 
 
+def _sync(argv):
+    from carina import sync
+
+    return sync.main(argv)
+
+
 def _drive(argv):
     from carina import drive
 
@@ -64,6 +72,7 @@ COMMANDS = {
     "verify": _store("verify"),
     "macro": _macro,
     "audit": _audit,
+    "sync": _sync,
     "drive": _drive,
 }
 

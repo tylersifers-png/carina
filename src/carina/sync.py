@@ -8,7 +8,9 @@ is an ancestor of Drive's. Anything else is divergence: nothing is changed.
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 from pathlib import Path
 import shutil
 import tempfile
@@ -19,7 +21,7 @@ from carina.drive import DriveSync, DriveSyncError, file_md5
 # Where the dataset sits under the sync root, locally and on Drive. Callers whose
 # layout differs pass ``staged=``. ``legacy=`` names an older pointer manifest whose
 # ``source_v1_manifest_sha256`` the local lineage may descend from (first push only).
-STAGED = "staged"
+STAGED = "staged/company"
 
 PUSHABLE = {"local_ahead", "remote_empty", "local_ahead_of_legacy"}
 PULLABLE = {"remote_ahead"}
@@ -140,3 +142,36 @@ def pull(sync: DriveSync, *, staged: str = STAGED) -> dict:
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
     return dict(found, relation="in_sync", local=found["remote"], pulled=len(manifest["files"]) + 1)
+
+
+DATASETS = {"company": "staged/company", "macro": "staged/macro"}
+
+
+def main(argv=None) -> int:
+    from carina import settings
+    from carina.drive import connect
+
+    parser = argparse.ArgumentParser(
+        prog="carina sync",
+        description="Fast-forward-only sync of one staged dataset between the data "
+        "directory and the matching Drive folder.",
+    )
+    parser.add_argument("action", choices=["status", "pull", "push"])
+    parser.add_argument("dataset", choices=sorted(DATASETS))
+    parser.add_argument(
+        "--drive-root-id",
+        default=os.environ.get("DRIVE_PROJECT_FOLDER_ID"),
+        help="Drive folder that mirrors the data directory.",
+    )
+    parser.add_argument("--legacy", help="Older Drive pointer manifest (first push only).")
+    args = parser.parse_args(argv)
+    sync = connect(args.drive_root_id, settings.data(), ["staged"])
+    staged = DATASETS[args.dataset]
+    if args.action == "status":
+        result = status(sync, staged=staged, legacy=args.legacy)
+    elif args.action == "pull":
+        result = pull(sync, staged=staged)
+    else:
+        result = push(sync, staged=staged, legacy=args.legacy)
+    print(json.dumps(result, sort_keys=True))
+    return 0

@@ -147,8 +147,24 @@ def file_md5(path: Path) -> str:
     return digest.hexdigest()
 
 
-def build_credentials_from_env() -> Credentials:
-    """Build user OAuth credentials from environment variables."""
+def build_credentials_from_env():
+    """Build Drive credentials from environment variables.
+
+    ``GOOGLE_SERVICE_ACCOUNT_JSON`` (a service account key) is used when set.
+    Otherwise user OAuth: ``GOOGLE_CLIENT_ID``, ``GOOGLE_CLIENT_SECRET`` and
+    ``GOOGLE_REFRESH_TOKEN``. A service account has no storage of its own, so in a
+    personal (non-Workspace) Drive it can update existing files but not create new
+    ones; user OAuth has no such limit.
+    """
+    key = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if key:
+        import json
+
+        from google.oauth2 import service_account
+
+        return service_account.Credentials.from_service_account_info(
+            json.loads(key), scopes=[DRIVE_SCOPE]
+        )
     required = {
         "GOOGLE_CLIENT_ID": os.environ.get("GOOGLE_CLIENT_ID"),
         "GOOGLE_CLIENT_SECRET": os.environ.get("GOOGLE_CLIENT_SECRET"),
@@ -502,28 +518,29 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv=None) -> int:
-    args = build_parser().parse_args(argv)
-
-    if not args.drive_root_id:
+def connect(drive_root_id, local_root, allowed_roots) -> DriveSync:
+    """A DriveSync for one Drive folder and local directory, using the environment's credentials."""
+    if not drive_root_id:
         raise DriveSyncError(
             "Drive root ID is required via --drive-root-id or DRIVE_PROJECT_FOLDER_ID."
         )
-    allowed_roots = set(args.allowed_roots or ["data"])
-
-    credentials = build_credentials_from_env()
     service = build(
         "drive",
         "v3",
-        credentials=credentials,
+        credentials=build_credentials_from_env(),
         cache_discovery=False,
     )
-    sync = DriveSync(
+    return DriveSync(
         DriveClient(service),
-        drive_root_id=args.drive_root_id,
-        local_root=Path(args.local_root),
-        allowed_roots=allowed_roots,
+        drive_root_id=drive_root_id,
+        local_root=Path(local_root),
+        allowed_roots=set(allowed_roots),
     )
+
+
+def main(argv=None) -> int:
+    args = build_parser().parse_args(argv)
+    sync = connect(args.drive_root_id, args.local_root, args.allowed_roots or ["data"])
 
     if args.action == "download" and not args.overwrite_local:
         conflicts = local_conflicts(sync, args.paths)
