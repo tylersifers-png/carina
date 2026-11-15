@@ -321,3 +321,39 @@ def test_cli_download_into_an_empty_target_and_with_override(cli, tmp_path: Path
     with pytest.raises(DriveSyncError):
         run()
     assert run("--overwrite-local") == 0
+
+
+def test_uploads_are_resumable_and_retry_each_chunk(tmp_path):
+    from carina import drive
+
+    sent = []
+
+    class Request:
+        def __init__(self, chunks):
+            self.chunks = chunks
+
+        def next_chunk(self, num_retries):
+            sent.append(num_retries)
+            self.chunks -= 1
+            return None, ({"id": "new"} if self.chunks == 0 else None)
+
+    class Files:
+        def create(self, **kwargs):
+            media = kwargs["media_body"]
+            assert media.resumable() and media.chunksize() == drive.UPLOAD_CHUNK_BYTES
+            return Request(3)
+
+        def update(self, **kwargs):
+            assert kwargs["media_body"].resumable()
+            return Request(1)
+
+    class Service:
+        def files(self):
+            return Files()
+
+    path = tmp_path / "part.parquet"
+    path.write_bytes(b"x" * 10)
+    client = drive.DriveClient(Service())
+    client.create_file("parent", path, "part.parquet")
+    client.update_file("file", path, "part.parquet")
+    assert sent == [drive.DRIVE_API_RETRIES] * 4

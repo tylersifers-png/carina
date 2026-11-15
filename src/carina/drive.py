@@ -27,6 +27,8 @@ DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
 GOOGLE_FOLDER_MIME = "application/vnd.google-apps.folder"
 GOOGLE_NATIVE_PREFIX = "application/vnd.google-apps."
 DRIVE_API_RETRIES = 4
+# Small enough for each request to finish within the client's socket timeout.
+UPLOAD_CHUNK_BYTES = 4 * 1024 * 1024
 
 
 class DriveSyncError(RuntimeError):
@@ -277,40 +279,43 @@ class DriveClient:
                 temp_path.unlink(missing_ok=True)
             raise
 
-    def create_file(self, parent_id: str, local_path: Path, name: str) -> None:
-        mime_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
-        media = MediaFileUpload(
+    def _send(self, request) -> None:
+        """Send a resumable upload in chunks, retrying each chunk.
+
+        A retried chunk resumes the same upload session, so a retry never
+        creates a second file.
+        """
+        response = None
+        while response is None:
+            _, response = request.next_chunk(num_retries=DRIVE_API_RETRIES)
+
+    @staticmethod
+    def _media(local_path: Path, name: str) -> MediaFileUpload:
+        return MediaFileUpload(
             str(local_path),
-            mimetype=mime_type,
-            resumable=False,
+            mimetype=mimetypes.guess_type(name)[0] or "application/octet-stream",
+            chunksize=UPLOAD_CHUNK_BYTES,
+            resumable=True,
         )
-        (
-            self.service.files()
-            .create(
+
+    def create_file(self, parent_id: str, local_path: Path, name: str) -> None:
+        self._send(
+            self.service.files().create(
                 body={"name": name, "parents": [parent_id]},
-                media_body=media,
+                media_body=self._media(local_path, name),
                 fields="id",
                 supportsAllDrives=True,
             )
-            .execute()
         )
 
     def update_file(self, file_id: str, local_path: Path, name: str) -> None:
-        mime_type = mimetypes.guess_type(name)[0] or "application/octet-stream"
-        media = MediaFileUpload(
-            str(local_path),
-            mimetype=mime_type,
-            resumable=False,
-        )
-        (
-            self.service.files()
-            .update(
+        self._send(
+            self.service.files().update(
                 fileId=file_id,
-                media_body=media,
+                media_body=self._media(local_path, name),
                 fields="id",
                 supportsAllDrives=True,
             )
-            .execute(num_retries=DRIVE_API_RETRIES)
         )
 
 
