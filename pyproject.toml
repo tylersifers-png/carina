@@ -1,0 +1,32 @@
+[project]
+name = "carina"
+version = "0.1.0"
+description = "Data ingestion up to a staged parquet dataset: capture, normalization, validation, quality flags, staging and promotion."
+requires-python = ">=3.12"
+dependencies = [
+    "pandas>=2.2",
+    "numpy>=2.0",
+    "pyarrow>=17",
+    "requests>=2.32",
+    "lxml>=5.2",
+    "exchange-calendars>=4.5",
+    "yfinance==1.7.0",
+    "google-api-python-client>=2.0",
+    "google-auth>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+carina = "carina.cli:main"
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

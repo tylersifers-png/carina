@@ -1,0 +1,96 @@
+{
+  "schema": "company-fact-quarantines-1.0",
+  "records": [
+    {
+      "symbol": "AAPL",
+      "metric": "shares_outstanding",
+      "basis": "balance_sheet",
+      "unit": "shares",
+      "start": "",
+      "end": "2013-09-28",
+      "accession": "0001193125-14-157311",
+      "expected_value": "899213",
+      "reason": "Original displayed balance sheet expresses shares in thousands; original XBRL and companyfacts label the unscaled amount as shares. Quarantine this reporting version; retain raw source rather than invent a corrected REPORTED value.",
+      "evidence_url": "https://www.sec.gov/Archives/edgar/data/320193/000119312514157311/d694710d10q.htm",
+      "evidence_sha256": "91a48f4fb752f3d5aa9cf18602416caf83593de3e90d1dd82764613bfe30f9a8"
+    },
+    {
+      "symbol": "AAPL",
+      "metric": "shares_outstanding",
+      "basis": "balance_sheet",
+      "unit": "shares",
+      "start": "",
+      "end": "2014-03-29",
+      "accession": "0001193125-14-157311",
+      "expected_value": "861745",
+      "reason": "Original displayed balance sheet expresses shares in thousands; original XBRL and companyfacts label the unscaled amount as shares. Quarantine this reporting version; retain raw source rather than invent a corrected REPORTED value.",
+      "evidence_url": "https://www.sec.gov/Archives/edgar/data/320193/000119312514157311/d694710d10q.htm",
+      "evidence_sha256": "91a48f4fb752f3d5aa9cf18602416caf83593de3e90d1dd82764613bfe30f9a8"
+    },
+    {
+      "symbol": "ROST",
+      "metric": "shares_outstanding",
+      "basis": "cover_page",
+      "unit": "shares",
+      "start": "",
+      "end": "2010-11-18",
+      "accession": "0001206774-10-002571",
+      "expected_value": "19084540",
+      "reason": "Original2010Dec8 10-Q cover reports19,084,540 shares; same-day10-Q/A explicitly corrects a typographical cover-page error to119,084,540 forNovember18. Quarantine only the exact superseded erroneous reporting version, retain raw source and existing amended REPORTED fact; no synthetic corrected amount or generic amendment precedence.",
+      "evidence_url": "https://www.sec.gov/Archives/edgar/data/745732/0001206774-10-002589.txt",
+      "evidence_sha256": "5447b942650967755601d5e2d1d20740505be95501995a46be8975716641d6c2"
+    },
+    {
+      "symbol": "BSX",
+      "metric": "shares_outstanding",
+      "basis": "cover_page",
+      "unit": "shares",
+      "start": "",
+      "end": "2013-04-30",
+      "accession": "0000885725-13-000013",
+      "expected_value": "1550351484",
+      "reason": "Original2013May7 10-Q cover reports1,550,351,484 shares; same-day10-Q/A explicitly states its sole purpose is correcting that cover count to1,349,092,384. Quarantine only the exact erroneous original version; retain raw source and the existing amended REPORTED fact, without synthesized correction or generic amendment precedence.",
+      "evidence_url": "https://www.sec.gov/Archives/edgar/data/885725/0000885725-13-000015.txt",
+      "evidence_sha256": "3b5729a3b63b77dbc56d3ea55fcdb957e920c7eef6d67b1364a5bb6fde633993"
+    },
+    {
+      "symbol": "HIG",
+      "metric": "equity",
+      "basis": "reported",
+      "unit": "USD",
+      "start": "",
+      "end": "2010-12-31",
+      "accession": "0000874766-13-000020",
+      "expected_value": "18700000000",
+      "reason": "Exclude this exact coarse narrative approximation from the interim precise-equity projection, not an assertion that the issuer misstated its narrative. The 2012Q3 10-Q/A filed2013Mar1 says equity after retrospective ASU2010-26 adoption was approximately$18.7b; original XBRL StockholdersEquity contextI2010Q4 has18700000000 with decimals=-8. The same-day2012 10-K accession0000874766-13-000021 gives detailed total equity$18,754million in its statement of changes in equity, original XBRL18754000000 with decimals=-6. The recent-only filing projection lacks these older acceptance timestamps and otherwise creates a latest-view tie between incompatible precision observations. Preserve raw facts and other versions; exclude only this source-bound narrative observation and retain the existing annual REPORTED fact, without fabricating a correction, generic annual/amendment precedence or blanket rounding tolerance. Original narrative https://www.sec.gov/Archives/edgar/data/874766/000087476613000020/hig10-q9302012documentrest.htm sha256:a6ed067b24ea80d4139d95112bb9b0f87719c100f22c1363a03255b260a10338; detailed annual XBRL https://www.sec.gov/Archives/edgar/data/874766/000087476613000021/hig-20121231.xml sha256:9dc684b884b4e3158ae05c4bd5e0e89851dd8962bdffac909f375b43149c0bf0",
+      "evidence_url": "https://www.sec.gov/Archives/edgar/data/874766/000087476613000020/hig-20120930.xml",
+      "evidence_sha256": "99086b79c708f5c5daa240e3735d35e482738b3605f714e9225e7b05e13be7c7"
+    },
+    {
+      "symbol": "PPG",
+      "metric": "revenue",
+      "basis": "reported_SalesRevenueNet",
+      "unit": "USD",
+      "start": "2017-01-01",
+      "end": "2017-12-31",
+      "accession": "0000079879-18-000040",
+      "expected_value": "3486000000",
+      "reason": "Original2018Q1 10-Q displays3486million as three-month2017comparative revenue, but its XBRL also assigns3486000000 to annual contextFD2017Q4YTD (2017Jan1..Dec31). Original2017 10-K/A annual sales are14748million. Quarantine only this exact wrong-period annual-context observation; retain the legitimate quarter facts, original raw tagging, other versions and existing annual REPORTED fact. Do not infer corrected dates/amounts or apply generic quarter/annual precedence.",
+      "evidence_url": "https://www.sec.gov/Archives/edgar/data/79879/000007987918000040/ppg-20180331.xml",
+      "evidence_sha256": "10c00ca0d10ae3097e1ccdab47802a61666dcd74db6a55a0a260f962cbe36583"
+    },
+    {
+      "symbol": "PPG",
+      "metric": "operating_income",
+      "basis": "reported",
+      "unit": "USD",
+      "start": "2017-01-01",
+      "end": "2017-03-31",
+      "accession": "0000079879-18-000039",
+      "expected_value": "557000000",
+      "reason": "Exclude this exact older segment-income presentation from the interim current-view projection, not an assertion that the issuer value was erroneous. Original2017 10-K/A has total segment income557million; later same-day2018Q1 10-Q has561million and discloses comparative reclassification for ASU2017-07. EDGAR headers accept annual at20180628071424 and quarterly at20180628071809, but recent-only filing projection lacks older timestamps. Both tagged OperatingIncomeLoss amounts are segment-income aggregates before corporate/other reconciliation, not certified consolidated operating income. Retain raw source and other versions, select the already-reported later561million fact, keep financial/basis comparability unapproved, and do not synthesize a correction, generic amendment precedence or intraday availability. Annual XML https://www.sec.gov/Archives/edgar/data/79879/000007987918000039/ppg-20171231.xml sha256:ca007c2b114d9b2d2fa89c1c2d1d199a667b74f61ecd211892fa27076d7d2bc7; later quarterly XML https://www.sec.gov/Archives/edgar/data/79879/000007987918000040/ppg-20180331.xml sha256:10c00ca0d10ae3097e1ccdab47802a61666dcd74db6a55a0a260f962cbe36583",
+      "evidence_url": "https://www.sec.gov/Archives/edgar/data/79879/000007987918000039/ppg-20171231.xml",
+      "evidence_sha256": "ca007c2b114d9b2d2fa89c1c2d1d199a667b74f61ecd211892fa27076d7d2bc7"
+    }
+  ]
+}

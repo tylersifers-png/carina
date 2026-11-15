@@ -1,0 +1,6 @@
+{
+  "schema": "company-market-policy-1.0",
+  "scope": "MARKET_DATA",
+  "large_daily_return": 0.35,
+  "adjustment_tolerance": 0.001
+}
