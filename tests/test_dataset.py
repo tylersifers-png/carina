@@ -51,7 +51,7 @@ def test_conversion_is_logically_equal_and_copies_unpartitioned_bytes(staged):
     assert all(item["equal"] for item in report.values())
     assert manifest["schema"] == dataset.SCHEMA and manifest["status"] == "VERIFIED"
     legacy = json.loads((candidate / "manifest.json").read_bytes())
-    for name in ("companies.parquet", "fundamentals.parquet", "coverage.json", "sources.json.bz2"):
+    for name in ("companies.parquet", "fundamentals.parquet", "coverage.json", "sources.json"):
         assert manifest["files"][name] == legacy["files"][name]  # byte-identical copies
     assert "daily_bars.parquet" not in manifest["files"]
     assert any(path.startswith("daily_bars/year=") for path in manifest["files"])

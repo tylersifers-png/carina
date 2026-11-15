@@ -1,4 +1,3 @@
-import bz2
 from datetime import datetime, timedelta, timezone
 import hashlib
 import io
@@ -183,7 +182,9 @@ def test_build_has_registered_companies_two_distinct_benchmarks_and_no_report(bu
         coverage["AAPL"]["financials"]["fields"]["revenue"]["status"]
         == "NO_MAPPED_REPORTED_FACTS"
     )
-    assert bz2.decompress((output / "sources.json.bz2").read_bytes())
+    sources = json.loads((output / store.SOURCES).read_bytes())
+    assert set(sources) == {"market", "sec"}
+    assert all(set(item) == {"collected_at", "receipts"} for item in sources["sec"].values())
 
 
 def test_profiles_do_not_coerce_bank_and_insurance_into_industrial_fcf():

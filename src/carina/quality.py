@@ -4,7 +4,6 @@ from __future__ import annotations
 from collections import Counter
 from datetime import date
 from itertools import groupby
-import bz2
 import hashlib
 from copy import deepcopy
 import json
@@ -626,7 +625,6 @@ def assess(path, *, previous_path=None, acknowledged=None):
         else None
     )
     coverage = json.loads((path / "coverage.json").read_bytes())
-    sources = json.loads(bz2.decompress((path / "sources.json.bz2").read_bytes()))
     return evaluate(
         dataset.read_table(path, "financial_latest"),
         dataset.read_table(path, "fundamentals"),
@@ -637,12 +635,9 @@ def assess(path, *, previous_path=None, acknowledged=None):
         data_digest=dataset_digest(manifest),
         retained_flags=retained,
         filings=dataset.read_table(path, "filings"),
+        # Rejected facts are fingerprinted against their raw values at build time.
         normalization_issues={
-            s: rejection_observations(
-                s,
-                coverage[s].get("financials", {}).get("excluded_facts", []),
-                sources.get("sec_projection", {}).get("companies", {}).get(s, {}),
-            )
+            s: coverage[s].get("financials", {}).get("excluded_facts", [])
             for s in manifest["companies"]
         },
     )

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import bz2
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 import io
@@ -42,8 +41,11 @@ FILES = {
     "filings.parquet",
     "field_applicability.parquet",
     "coverage.json",
-    "sources.json.bz2",
+    "sources.json",
 }
+# Receipts for the latest capture of each series. Raw payloads stay in the run
+# folder and are deleted with it once the run is promoted.
+SOURCES = "sources.json"
 FINANCIAL_FORMS = {"10-K", "10-K/A", "10-Q", "10-Q/A", "10-K405", "8-K", "8-K/A"}
 LIMITS = [
     "CURRENT_VINTAGE_NOT_HISTORICAL_AS_KNOWN",
@@ -201,10 +203,6 @@ def bind_validation(manifest):
 
 
 def validate(content):
-    if content.get("schema") == "company-financial-remap-1.0":
-        from carina.remap import validate as validate_remap
-
-        return validate_remap(content)
     if content.get("schema") == "company-update-v1.1":
         from carina.updates import validate_capture
 
@@ -359,6 +357,17 @@ def collect(root, symbols, run, **controls):
 
 def load(path, bundle):
     return sec.load(path, bundle, validator=validate, **BOUNDS)
+
+
+def rejection_observations(symbol, issues, item):
+    from carina.quality import rejection_observations as observe
+
+    return observe(symbol, issues, item)
+
+
+def sec_receipts(item, collected_at):
+    """What is kept of one company's SEC capture: its receipts, not its payload."""
+    return dict(collected_at=collected_at, receipts=item["receipts"])
 
 
 def run_path(root, bundle):
@@ -528,10 +537,6 @@ def build(root, bundle, market_fetch=market):
 
     path = run_path(root, bundle)
     content = load(path, bundle)
-    if content["schema"] == "company-financial-remap-1.0":
-        from carina.remap import build as build_remap
-
-        return build_remap(root, bundle, content)
     if content["schema"] == "company-update-v1.1":
         from carina.updates import build_update
 
@@ -565,7 +570,7 @@ def build(root, bundle, market_fetch=market):
         raw, receipt = market_fetch(symbol, spec["requested_start"], root)
         frame, market_coverage = validate_market(raw, receipt)
         frames.append(frame)
-        market_sources[symbol] = dict(receipt=receipt, wrapper_csv=raw.decode())
+        market_sources[symbol] = receipt
         tables["securities"].append(
             dict(
                 symbol=symbol,
@@ -600,7 +605,7 @@ def build(root, bundle, market_fetch=market):
             versions=len(canonical),
             latest_rows=len(latest),
             excluded_rows=len(issues),
-            excluded_facts=issues,
+            excluded_facts=rejection_observations(symbol, issues, item),
             acceptance_timestamps=sum(bool(r["filing_accepted_at"]) for r in canonical),
             fields={
                 name: dict(
@@ -633,8 +638,16 @@ def build(root, bundle, market_fetch=market):
         )
     replace_generated(output / "coverage.json", sec.encoded(coverage))
     replace_generated(
-        output / "sources.json.bz2",
-        bz2.compress(sec.encoded(dict(sec_projection=content, market=market_sources))),
+        output / SOURCES,
+        sec.encoded(
+            dict(
+                market=market_sources,
+                sec={
+                    s: sec_receipts(item, content["collected_at"])
+                    for s, item in content["companies"].items()
+                },
+            )
+        ),
     )
     manifest = dict(
         schema=SCHEMA,

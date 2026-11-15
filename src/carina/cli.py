@@ -5,7 +5,7 @@
 Commands:
     refresh market ...      refresh daily market data into the staged dataset
     collect | build | verify  capture SEC facts and new companies, build, verify
-    remap ...               rebuild financial tables from retained SEC captures
+    macro refresh|verify    refresh macro series and record their revisions
     audit financial|market  audit a verified dataset
     drive download|upload   non-destructive Drive sync of explicit paths
 
@@ -36,10 +36,10 @@ def _refresh(argv):
     return refresh.main(argv)
 
 
-def _remap(argv):
-    from carina import remap
+def _macro(argv):
+    from carina import macro
 
-    return remap.main(argv) or 0
+    return macro.main(argv)
 
 
 def _audit(argv):
@@ -62,7 +62,7 @@ COMMANDS = {
     "collect": _store("collect"),
     "build": _store("build"),
     "verify": _store("verify"),
-    "remap": _remap,
+    "macro": _macro,
     "audit": _audit,
     "drive": _drive,
 }

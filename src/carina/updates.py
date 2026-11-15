@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import bz2
 from copy import deepcopy
 from datetime import datetime, timezone
 from importlib.metadata import version
@@ -635,19 +634,10 @@ def build_update(root, bundle, content, market_fetch, *, output=None):
     if current:
         current_path, _ = current
         coverage = json.loads((current_path / "coverage.json").read_bytes())
-        sources = json.loads(
-            bz2.decompress((current_path / "sources.json.bz2").read_bytes())
-        )
+        sources = json.loads((current_path / store.SOURCES).read_bytes())
     else:
         coverage = {}
-        sources = dict(
-            sec_projection=dict(
-                schema=store.SCHEMA, collected_at=content["collected_at"], companies={}
-            ),
-            market={},
-        )
-    sources.setdefault("sec_receipts", {})
-    sources.setdefault("market_updates", {})
+        sources = dict(market={}, sec={})
     timings["working_tables_seconds"] = round(time.monotonic() - phase_started, 3)
     processing_started = time.monotonic()
     for symbol, task in targets["market"].items():
@@ -659,15 +649,12 @@ def build_update(root, bundle, content, market_fetch, *, output=None):
             frame = append_market(
                 old, raw, receipt, task["start"], through=task.get("through")
             )
-            sources["market_updates"].setdefault(symbol, []).append(
-                dict(receipt=receipt, wrapper_csv=raw.decode())
-            )
         else:
             frame, _ = store.validate_market(
                 raw, receipt, expected_end=task.get("through")
             )
-            sources["market"][symbol] = dict(receipt=receipt, wrapper_csv=raw.decode())
-            sources["market_updates"].pop(symbol, None)
+        # Only the receipt of the latest capture is kept; the payload is temporary.
+        sources["market"][symbol] = receipt
         tables.replace("daily_bars", symbol, frame)
         coverage.setdefault(symbol, {})["market"] = market_coverage(frame)
         if tables.selected("securities", symbol).empty:
@@ -723,17 +710,11 @@ def build_update(root, bundle, content, market_fetch, *, output=None):
             ]
         tables.replace("filings", symbol, pd.DataFrame(incoming))
         coverage.setdefault(symbol, {})["financials"] = financial_coverage(
-            symbol, canonical, latest, issues
+            symbol, canonical, latest, quality.rejection_observations(symbol, issues, item)
         )
-        previous = sources["sec_projection"]["companies"].get(symbol)
-        if previous:
-            for r in previous["receipts"].values():
-                sources["sec_receipts"][r["sha256"]] = r
-        sources["sec_projection"]["companies"][symbol] = item
+        sources["sec"][symbol] = store.sec_receipts(item, content["collected_at"])
     store.replace_generated(output / "coverage.json", sec.encoded(coverage))
-    store.replace_generated(
-        output / "sources.json.bz2", bz2.compress(sec.encoded(sources))
-    )
+    store.replace_generated(output / store.SOURCES, sec.encoded(sources))
     del sources, coverage
     timings["selected_processing_seconds"] = round(
         time.monotonic() - processing_started, 3

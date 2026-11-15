@@ -32,7 +32,7 @@ TABLES = (
     "filings",
     "field_applicability",
 )
-AUX_FILES = ("coverage.json", "sources.json.bz2")
+AUX_FILES = ("coverage.json", "sources.json")
 # Tables stored as partitions, and the partition column. Everything else is one file.
 PARTITIONS = {"daily_bars": "year"}
 TABLE_KEYS = {
@@ -172,7 +172,9 @@ def verify_files(root: Path, manifest: dict) -> None:
     files = manifest["files"]
     for relative in files:
         safe_relative(relative)
-    if {member(relative) for relative in files} != expected_members():
+    if manifest.get("schema") == SCHEMA and {
+        member(relative) for relative in files
+    } != expected_members():
         raise ValueError("Unexpected dataset members")
     found = inventory(root)
     if set(found) != set(files):

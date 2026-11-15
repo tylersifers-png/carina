@@ -5,7 +5,6 @@ from collections import Counter
 from functools import lru_cache
 from datetime import date
 from pathlib import Path
-import bz2
 import hashlib
 import json
 
@@ -98,7 +97,6 @@ def evaluate(
     daily,
     symbols,
     market_sources,
-    market_updates=None,
     *,
     benchmarks=None,
     acknowledged=None,
@@ -228,12 +226,7 @@ def evaluate(
             continue
         source = market_sources.get(symbol, {})
         receipt = source.get("receipt", {})
-        updates = (market_updates or {}).get(symbol, [])
-        end = (
-            updates[-1]["receipt"]["last_session"]
-            if updates
-            else receipt.get("last_session")
-        )
+        end = receipt.get("last_session")
         start = (
             company(symbol)["requested_start"]
             if symbol in symbols
@@ -439,12 +432,11 @@ def evaluate(
 def assess(path, *, acknowledged=None):
     path = Path(path)
     manifest = json.loads((path / "manifest.json").read_bytes())
-    sources = json.loads(bz2.decompress((path / "sources.json.bz2").read_bytes()))
+    sources = json.loads((path / "sources.json").read_bytes())
     return evaluate(
         dataset.read_table(path, "daily_bars"),
         manifest["companies"],
-        sources.get("market", {}),
-        sources.get("market_updates", {}),
+        {s: dict(receipt=r) for s, r in sources.get("market", {}).items()},
         benchmarks=manifest["benchmarks"],
         acknowledged=acknowledged,
         identity_tables={

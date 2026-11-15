@@ -1,5 +1,4 @@
 from copy import deepcopy
-import bz2
 import io
 import json
 import shutil
@@ -59,12 +58,9 @@ def remove_benchmark(root, symbol):
     coverage = json.loads((current / "coverage.json").read_bytes())
     coverage.pop(symbol)
     store.replace_generated(current / "coverage.json", sec.encoded(coverage))
-    sources = json.loads(bz2.decompress((current / "sources.json.bz2").read_bytes()))
+    sources = json.loads((current / store.SOURCES).read_bytes())
     sources["market"].pop(symbol)
-    sources.get("market_updates", {}).pop(symbol, None)
-    store.replace_generated(
-        current / "sources.json.bz2", bz2.compress(sec.encoded(sources))
-    )
+    store.replace_generated(current / store.SOURCES, sec.encoded(sources))
     manifest = json.loads((current / "manifest.json").read_bytes())
     manifest["benchmarks"].remove(symbol)
     for name in store.FILES:
@@ -155,7 +151,7 @@ def test_expansion_only_fetches_missing_company_preserves_all_existing_rows_and_
     subset(state, "MSFT")
     current = state / store.STAGED
     old = {n: pd.read_parquet(current / (n + ".parquet")) for n in update.TABLES}
-    original_sources = (current / "sources.json.bz2").read_bytes()
+    original_sources = (current / store.SOURCES).read_bytes()
     bundle, _ = capture(state, update.request(["MSFT"]))
     calls = []
 
@@ -170,10 +166,8 @@ def test_expansion_only_fetches_missing_company_preserves_all_existing_rows_and_
         if "symbol" in frame:
             new = new.loc[new.symbol != "MSFT"].reset_index(drop=True)
         assert_frame_equal(frame.reset_index(drop=True), new)
-    import bz2
-
-    old_sources = json.loads(bz2.decompress(original_sources))
-    new_sources = json.loads(bz2.decompress((output / "sources.json.bz2").read_bytes()))
+    old_sources = json.loads(original_sources)
+    new_sources = json.loads((output / store.SOURCES).read_bytes())
     for symbol in store.BENCHMARKS:
         assert old_sources["market"][symbol] == new_sources["market"][symbol]
 
@@ -533,18 +527,16 @@ def test_explicit_cutoff_binds_new_history_request_and_preserves_current(state):
     assert before == {p.name: p.read_bytes() for p in (state / store.STAGED).iterdir()}
     prices = pd.read_parquet(output / "daily_bars.parquet")
     assert prices.loc[prices.symbol.eq("MSFT"), "session_date"].max() == "1997-01-03"
-    import bz2
-
-    sources = json.loads(bz2.decompress((output / "sources.json.bz2").read_bytes()))
-    receipt = sources["market"]["MSFT"]["receipt"]
+    sources = json.loads((output / store.SOURCES).read_bytes())
+    receipt = sources["market"]["MSFT"]
     assert receipt["market_through"] == "1997-01-03"
+    assert "wrapper_csv" not in json.dumps(sources)  # payloads are not kept
+    raw, _ = fetch("MSFT", "1997-01-01", state, through="1997-01-03")
     # An older response is accepted only when the caller explicitly binds its scope.
     with pytest.raises(ValueError, match="Market identity/window mismatch"):
-        store.validate_market(
-            sources["market"]["MSFT"]["wrapper_csv"].encode(), receipt
-        )
+        store.validate_market(raw, receipt)
     # Explicit scope never waives an invalid close within that scope.
-    frame = pd.read_csv(io.StringIO(sources["market"]["MSFT"]["wrapper_csv"]))
+    frame = pd.read_csv(io.StringIO(raw.decode()))
     frame.loc[1, "Close"] = float("nan")
     raw = frame.to_csv(index=False).encode()
     receipt["sha256"] = sec.digest(raw)
