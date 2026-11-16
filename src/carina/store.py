@@ -287,8 +287,9 @@ def sec_user_agent(contact=None, *, require_contact=False):
         )
     if contact and not SEC_CONTACT_PATTERN.fullmatch(contact):
         raise ValueError("Invalid SEC contact email")
-    suffix = f"; {contact}" if contact else ""
-    return f"Carina/1.0 ({SEC_REPOSITORY}{suffix})"
+    if contact:
+        return f"Carina Data Pipeline {contact}"
+    return f"Carina Data Pipeline {SEC_REPOSITORY}"
 
 
 def _source_failure(symbol, key, attempts):

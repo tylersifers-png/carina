@@ -22,6 +22,12 @@ COMPANIES = INITIAL_COMPANIES
 from tests.drive_fakes import MemoryDrive
 
 
+def test_sec_user_agent_uses_plain_declared_contact_format():
+    assert store.sec_user_agent("operator@example.test", require_contact=True) == (
+        "Carina Data Pipeline operator@example.test"
+    )
+
+
 class MutableDrive(MemoryDrive):
     def update_file(self, file_id, local_path, name):
         if name == self.fail_upload:
