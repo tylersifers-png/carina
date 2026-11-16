@@ -63,18 +63,30 @@ def load(root, run_id):
 
 
 def identity(state):
+    scans = {
+        symbol: {
+            "source_sha256": item["receipt"]["sha256"],
+            "new_accessions": item["new_accessions"],
+        }
+        for symbol, item in state["scans"].items()
+    }
+    captures = {
+        symbol: {
+            "projection_sha256": item["projection_sha256"],
+            "facts_sha256": item["receipts"]["facts"]["sha256"],
+            "submissions_sha256": item["receipts"]["submissions"]["sha256"],
+        }
+        for symbol, item in state["captures"].items()
+    }
     return sec.digest(
         sec.encoded(
             {
-                key: state[key]
-                for key in (
-                    "schema",
-                    "run_id",
-                    "scan_plan",
-                    "collected_at",
-                    "scans",
-                    "captures",
-                )
+                "schema": state["schema"],
+                "run_id": state["run_id"],
+                "scan_plan": state["scan_plan"],
+                "collected_at": state["collected_at"],
+                "scans": scans,
+                "captures": captures,
             }
         )
     )
@@ -251,7 +263,7 @@ def build(root, run_id):
     def no_market(*args, **kwargs):
         raise AssertionError("An SEC-only refresh must not request market data")
 
-    bundle = sec.digest(sec.encoded(content))
+    bundle = expected
     candidate = updates.build_update(root, bundle, content, no_market, output=output)
     if candidate is None:
         return None

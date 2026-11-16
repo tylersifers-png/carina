@@ -149,6 +149,37 @@ def test_same_day_new_accession_is_detected_but_older_gap_is_not():
     ]
 
 
+def test_stage_identity_is_bound_to_compact_source_and_projection_hashes():
+    state = {
+        "schema": sec_refresh.SCHEMA,
+        "run_id": "sec-test",
+        "scan_plan": {"request": {"companies": ["AAPL"]}},
+        "collected_at": "2026-11-16T12:00:00+00:00",
+        "scans": {
+            "AAPL": {
+                "receipt": {"sha256": "a" * 64},
+                "new_accessions": ["0000320193-26-000125"],
+                "filings": [{"large": "projection need not be re-encoded"}],
+            }
+        },
+        "captures": {
+            "AAPL": {
+                "projection_sha256": "b" * 64,
+                "facts": {"large": "projection need not be re-encoded"},
+                "receipts": {
+                    "facts": {"sha256": "c" * 64},
+                    "submissions": {"sha256": "a" * 64},
+                },
+            }
+        },
+    }
+    original = sec_refresh.identity(state)
+    state["captures"]["AAPL"]["facts"]["large"] = "ignored duplicate payload"
+    assert sec_refresh.identity(state) == original
+    state["captures"]["AAPL"]["projection_sha256"] = "d" * 64
+    assert sec_refresh.identity(state) != original
+
+
 def test_rate_limiter_enforces_tenth_second_between_request_starts():
     now = [0.0]
     sleeps = []
