@@ -278,6 +278,8 @@ def validate(content):
 
 def sec_user_agent(contact=None, *, require_contact=False):
     """Build the declared SEC identity without retaining the contact in data."""
+    if contact is None:
+        contact = os.environ.get("SEC_CONTACT_EMAIL", "")
     contact = (contact or "").strip()
     if require_contact and not contact:
         raise ValueError(

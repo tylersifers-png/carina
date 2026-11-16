@@ -1,6 +1,8 @@
 import json
 import shutil
 
+import pytest
+
 from carina import common as sec, sec_refresh, store, updates
 from carina.registry import company
 from tests.test_store import built
@@ -163,6 +165,14 @@ def test_rate_limiter_enforces_tenth_second_between_request_starts():
     now[0] += 0.04
     limiter.wait()
     assert sleeps == [0.060000000000000005]
+
+
+def test_production_sec_refresh_requires_contact_email(built, monkeypatch):
+    root = _verified_store(built)
+    sec_refresh.initialize(root, "sec-contact", ["AAPL"])
+    monkeypatch.delenv("SEC_CONTACT_EMAIL", raising=False)
+    with pytest.raises(ValueError, match="SEC_CONTACT_EMAIL is required"):
+        sec_refresh.collect(root, "sec-contact", limiter=NoWait())
 
 
 def test_run_returns_two_and_keeps_checkpoint_when_history_needs_review(

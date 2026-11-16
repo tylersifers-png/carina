@@ -146,7 +146,14 @@ def collect(root, run_id, *, fetch=None, limiter=None):
     """Checkpoint submissions scans and selected companyfacts projections."""
     state = load(root, run_id)
     _baseline(root, state["scan_plan"])
-    provider = fetch or store.fetch_sec_json
+    if fetch is None:
+        user_agent = store.sec_user_agent(require_contact=True)
+
+        def provider(symbol, key):
+            return store.fetch_sec_json(symbol, key, user_agent=user_agent)
+
+    else:
+        provider = fetch
     limiter = limiter or RateLimiter()
     stored = _stored_filings(root)
     selected = state["scan_plan"]["request"]["companies"]

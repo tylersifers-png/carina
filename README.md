@@ -59,6 +59,9 @@ carina sync push company --drive-root-id ID        # fast-forward only
 Drive access uses `GOOGLE_SERVICE_ACCOUNT_JSON` when set, otherwise
 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REFRESH_TOKEN`. A service
 account cannot create files in a personal Google Drive, only update existing ones.
+SEC refreshes require `SEC_CONTACT_EMAIL`; it is included in the declared
+User-Agent for fair-access identification and is not retained in datasets or
+receipts.
 
 ## Layout
 
