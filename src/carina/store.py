@@ -298,53 +298,97 @@ def _source_failure(symbol, key, attempts):
     return RuntimeError(f"SEC {key} unavailable for {symbol}: {reason}")
 
 
-def collect_company(path, symbol, *, user_agent=None, attempt_audit=None):
+SEC_ENDPOINTS = {
+    "facts": "api/xbrl/companyfacts",
+    "submissions": "submissions",
+}
+
+
+def fetch_sec_json(
+    symbol, key, *, user_agent=None, attempt_audit=None, fetch=None
+):
+    """Fetch and validate one SEC JSON response without writing its payload."""
+    if key not in SEC_ENDPOINTS:
+        raise ValueError("Unknown SEC endpoint")
     spec = company(symbol)
-    agent = user_agent or sec_user_agent()
-    item = dict(receipts={})
-    source = {}
-    for key, endpoint in (
-        ("facts", "api/xbrl/companyfacts"),
-        ("submissions", "submissions"),
-    ):
-        url = f"https://data.sec.gov/{endpoint}/CIK{spec['issuer_cik']:010d}.json"
-        raw, attempts = sec.fetch(url, agent, max_body=32 * 1024 * 1024)
-        if attempt_audit is not None:
-            attempt_audit(symbol, key, url, attempts)
-        if raw is None:
-            raise _source_failure(symbol, key, attempts)
-        receipt = attempts[-1]
-        receipt_valid(receipt, raw, url)
-        sec.write(path / (symbol + "_" + key + ".json"), raw)
-        source[key] = json.loads(raw)
-        item["receipts"][key] = receipt
-        time.sleep(1)
-    item["issuer_metadata"] = {
-        k: source["submissions"][k] for k in ("cik", "name", "tickers")
-    }
-    if int(item["issuer_metadata"]["cik"]) != spec["issuer_cik"] or (
-        item["issuer_metadata"]["tickers"]
-        and symbol not in item["issuer_metadata"]["tickers"]
+    url = (
+        f"https://data.sec.gov/{SEC_ENDPOINTS[key]}/"
+        f"CIK{spec['issuer_cik']:010d}.json"
+    )
+    raw, attempts = (fetch or sec.fetch)(
+        url, user_agent or sec_user_agent(), max_body=32 * 1024 * 1024
+    )
+    if attempt_audit is not None:
+        attempt_audit(symbol, key, url, attempts)
+    if raw is None:
+        raise _source_failure(symbol, key, attempts)
+    receipt = attempts[-1]
+    receipt_valid(receipt, raw, url)
+    try:
+        source = json.loads(raw)
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Invalid SEC {key} JSON for {symbol}") from exc
+    if not isinstance(source, dict):
+        raise ValueError(f"Invalid SEC {key} JSON for {symbol}")
+    return source, receipt, raw
+
+
+def project_submissions(symbol, source):
+    """Retain issuer identity and the selected recent financial filing list."""
+    spec = company(symbol)
+    identity = {k: source[k] for k in ("cik", "name", "tickers")}
+    if int(identity["cik"]) != spec["issuer_cik"] or (
+        identity["tickers"] and symbol not in identity["tickers"]
     ):
         raise ValueError("SEC submissions issuer/ticker mismatch")
+    filings = [
+        row
+        for row in norm.filing_rows(source["filings"]["recent"])
+        if row["form"] in FINANCIAL_FORMS
+    ]
+    return identity, filings
+
+
+def project_companyfacts(symbol, source):
+    """Keep only the configured fact tags from a companyfacts response."""
+    spec = company(symbol)
+    if int(source.get("cik", -1)) != spec["issuer_cik"]:
+        raise ValueError("SEC companyfacts issuer mismatch")
     wanted = {
         (ns, tag) for _, _, tags in metrics_for(symbol).values() for ns, tag, _ in tags
     }
-    item["facts"] = dict(
-        cik=source["facts"]["cik"],
-        entityName=source["facts"].get("entityName"),
-        facts={},
-    )
-    for ns, tags in source["facts"]["facts"].items():
-        selected = {tag: val for tag, val in tags.items() if (ns, tag) in wanted}
+    projection = dict(cik=source["cik"], entityName=source.get("entityName"), facts={})
+    for namespace, tags in source.get("facts", {}).items():
+        selected = {
+            tag: value for tag, value in tags.items() if (namespace, tag) in wanted
+        }
         if selected:
-            item["facts"]["facts"][ns] = selected
+            projection["facts"][namespace] = selected
+    if not projection["facts"]:
+        raise ValueError("SEC identity mismatch or empty facts")
+    return projection
+
+
+def collect_company(path, symbol, *, user_agent=None, attempt_audit=None):
+    agent = user_agent or sec_user_agent()
+    item = dict(receipts={})
+    source = {}
+    for key in ("facts", "submissions"):
+        value, receipt, raw = fetch_sec_json(
+            symbol,
+            key,
+            user_agent=agent,
+            attempt_audit=attempt_audit,
+        )
+        sec.write(path / (symbol + "_" + key + ".json"), raw)
+        source[key] = value
+        item["receipts"][key] = receipt
+        time.sleep(1)
+    item["issuer_metadata"], item["filings"] = project_submissions(
+        symbol, source["submissions"]
+    )
+    item["facts"] = project_companyfacts(symbol, source["facts"])
     item["projection_sha256"] = sec.digest(sec.encoded(item["facts"]))
-    item["filings"] = [
-        r
-        for r in norm.filing_rows(source["submissions"]["filings"]["recent"])
-        if r["form"] in FINANCIAL_FORMS
-    ]
     return item
 
 

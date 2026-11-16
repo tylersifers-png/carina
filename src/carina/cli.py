@@ -3,7 +3,7 @@
     carina [--data DIR] [--decisions DIR] COMMAND ...
 
 Commands:
-    refresh market ...      refresh daily market data into the staged dataset
+    refresh market|sec ...  refresh market data or SEC financial facts
     collect | build | verify  capture SEC facts and new companies, build, verify
     macro refresh|verify    refresh macro series and record their revisions
     audit financial|market  audit a verified dataset
@@ -33,6 +33,10 @@ def _store(action):
 
 
 def _refresh(argv):
+    if argv and argv[0] == "sec":
+        from carina import sec_refresh
+
+        return sec_refresh.main(argv[1:])
     from carina import refresh
 
     return refresh.main(argv)
