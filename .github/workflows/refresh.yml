@@ -1,12 +1,19 @@
 name: Refresh
 
-# Weekdays after the US close: refresh daily market bars and macro series, then
-# push the staged datasets back to Drive. SEC financial refreshes are not run
-# here (SEC has rejected requests from GitHub-hosted runners).
+# Macro series every weekday evening; market bars on Friday evening. Both run at
+# 04:00 UTC: 10:00 PM US Central standard time (11:00 PM daylight time) on the
+# previous day. The staged datasets are pushed back to Drive. SEC financial
+# refreshes are not run here (SEC has rejected requests from GitHub-hosted runners).
 on:
   schedule:
-    - cron: "30 23 * * 1-5" # 23:30 UTC, Monday to Friday
+    - cron: "0 4 * * 2-5" # Monday to Thursday evenings: macro
+    - cron: "0 4 * * 6" # Friday evening: macro and market
   workflow_dispatch:
+    inputs:
+      market:
+        description: Also refresh market data
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -27,6 +34,7 @@ jobs:
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+      MARKET: ${{ (github.event_name == 'workflow_dispatch' && inputs.market) || github.event.schedule == '0 4 * * 6' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
@@ -45,26 +53,27 @@ jobs:
         run: |
           mkdir -p "$CARINA_DATA"
           carina drive download decisions --local-root "$CARINA_DATA" --allowed-root decisions
-          carina sync pull company
           carina sync pull macro
+          if [ "$MARKET" = true ]; then carina sync pull company; fi
 
       - name: Refresh macro series
         # A failed source keeps the others; the job is marked failed at the end.
         run: carina macro refresh || echo "MACRO_FAILED=1" >> "$GITHUB_ENV"
 
       - name: Refresh market data
+        if: env.MARKET == 'true'
         # Exit status 2 means the refresh stopped for review; nothing is promoted.
         run: carina refresh market
 
       - name: Verify
         run: |
-          carina verify
           carina macro verify
+          if [ "$MARKET" = true ]; then carina verify; fi
 
       - name: Push staged datasets
         run: |
           carina sync push macro
-          carina sync push company
+          if [ "$MARKET" = true ]; then carina sync push company; fi
 
       - name: Report macro source failures
         if: env.MACRO_FAILED == '1'
