@@ -14,9 +14,10 @@ Version 0.2.0 maintains two datasets:
 - **macro**: FRED series (with a Federal Reserve download fallback), FINRA margin
   statistics and the Treasury par yield curve, with every revision kept.
 
-The code works and its tests pass. It has not been released. The scheduled
-workflow in `.github/workflows/refresh.yml` needs a Drive credential before it can
-run.
+Released as `v0.2.0`. The workflow in `.github/workflows/refresh.yml` refreshes
+the macro series every weekday evening and the market bars on Friday evening (04:00
+UTC the next day), then pushes the datasets to Drive. It does not refresh SEC
+financial facts.
 
 Planned next:
 
