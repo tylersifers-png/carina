@@ -16,6 +16,7 @@ import argparse
 import bz2
 from copy import deepcopy
 from datetime import datetime, timezone
+import gzip
 import json
 from pathlib import Path
 import shutil
@@ -49,15 +50,28 @@ class RateLimiter:
 
 
 def stage_file(root, run_id):
+    return refresh.run_dir(root, run_id) / "sec-stage.json.gz"
+
+
+def legacy_stage_file(root, run_id):
     return refresh.run_dir(root, run_id) / "sec-stage.json.bz2"
 
 
+def stage_exists(root, run_id):
+    return stage_file(root, run_id).exists() or legacy_stage_file(root, run_id).exists()
+
+
 def save(root, run_id, state):
-    store.replace_generated(stage_file(root, run_id), bz2.compress(sec.encoded(state)))
+    raw = gzip.compress(sec.encoded(state), compresslevel=1, mtime=0)
+    store.replace_generated(stage_file(root, run_id), raw)
 
 
 def load(root, run_id):
-    state = json.loads(bz2.decompress(stage_file(root, run_id).read_bytes()))
+    path = stage_file(root, run_id)
+    raw = gzip.decompress(path.read_bytes()) if path.exists() else bz2.decompress(
+        legacy_stage_file(root, run_id).read_bytes()
+    )
+    state = json.loads(raw)
     if state.get("schema") != SCHEMA or state.get("run_id") != run_id:
         raise ValueError("SEC refresh staging identity mismatch")
     return state
@@ -98,7 +112,7 @@ def _baseline(root, plan):
 
 
 def initialize(root, run_id, symbols=None):
-    if stage_file(root, run_id).exists():
+    if stage_exists(root, run_id):
         state = load(root, run_id)
         _baseline(root, state["scan_plan"])
         return state

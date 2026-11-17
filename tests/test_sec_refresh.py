@@ -1,5 +1,6 @@
 import json
 import shutil
+import bz2
 
 import pytest
 
@@ -211,6 +212,17 @@ def test_build_envelope_reuses_pinned_scan_baseline(built, monkeypatch):
     content = sec_refresh.envelope(root, state)
     assert content["plan"]["base"] == state["scan_plan"]["base"]
     assert content["plan"]["request"]["companies"] == ["AAPL"]
+
+
+def test_legacy_bz2_checkpoint_remains_resumable(built):
+    root = _verified_store(built)
+    state = sec_refresh.initialize(root, "sec-legacy", ["AAPL"])
+    sec_refresh.stage_file(root, "sec-legacy").unlink()
+    store.replace_generated(
+        sec_refresh.legacy_stage_file(root, "sec-legacy"),
+        bz2.compress(sec.encoded(state)),
+    )
+    assert sec_refresh.load(root, "sec-legacy") == state
 
 
 def test_rate_limiter_enforces_tenth_second_between_request_starts():
