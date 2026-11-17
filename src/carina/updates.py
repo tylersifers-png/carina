@@ -122,6 +122,7 @@ def request(
     add_benchmarks=False,
     market_through=None,
     refresh_financials=None,
+    refresh_market=None,
     market_refresh_symbols=None,
 ):
     result = dict(
@@ -142,6 +143,19 @@ def request(
         if type(refresh_financials) is not bool:
             raise ValueError("Financial refresh control must be boolean")
         result["refresh_financials"] = refresh_financials
+    if refresh_market is not None:
+        if type(refresh_market) is not bool:
+            raise ValueError("Market refresh control must be boolean")
+        if refresh_market is False and (
+            add_companies
+            or not add_periods
+            or full_refresh
+            or add_benchmarks
+            or market_through is not None
+            or market_refresh_symbols is not None
+        ):
+            raise ValueError("Disabling market refresh requires SEC-only period controls")
+        result["refresh_market"] = refresh_market
     if market_refresh_symbols is not None:
         if (
             not isinstance(market_refresh_symbols, list)
@@ -293,6 +307,8 @@ def operations(plan):
         for s in BENCHMARKS:
             if s not in base["benchmarks"]:
                 markets[s] = dict(mode="full", start=store.BENCHMARK_STARTS[s])
+    if req.get("refresh_market") is False:
+        markets = {}
     financial_existing = existing if req.get("refresh_financials", True) else []
     for symbol in req.get("market_refresh_symbols", []):
         if symbol not in base["companies"] + base["benchmarks"]:
@@ -339,6 +355,7 @@ def validate_capture(content):
         | {
             "market_through",
             "refresh_financials",
+            "refresh_market",
             "market_refresh_symbols",
         }
     ):

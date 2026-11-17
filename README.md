@@ -7,22 +7,21 @@ the decisions.
 
 ## Status
 
-Version 0.2.0 maintains two datasets:
+Version 0.3.0 maintains two datasets:
 
 - **company**: daily market bars from Yahoo Finance for selected companies and
   benchmarks, and selected SEC companyfacts;
 - **macro**: FRED series (with a Federal Reserve download fallback), FINRA margin
   statistics and the Treasury par yield curve, with every revision kept.
 
-Released as `v0.2.0`. The workflow in `.github/workflows/refresh.yml` refreshes
+Version 0.3.0 adds a resumable SEC financial refresh intended for a machine
+that can reach `data.sec.gov`. The workflow in `.github/workflows/refresh.yml` refreshes
 the macro series every weekday evening and the market bars on Friday evening (04:00
-UTC the next day), then pushes the datasets to Drive. It does not refresh SEC
-financial facts.
+UTC the next day), then pushes the datasets to Drive. Hosted workflows do not
+refresh SEC financial facts.
 
 Planned next:
 
-- an add-company command and a refresh path for SEC financial facts (SEC rejects
-  requests from GitHub-hosted runners, so these run elsewhere);
 - partitioning for intraday (minute) data;
 - adapters for further public, proprietary and inbox sources.
 
@@ -51,6 +50,7 @@ The decision files:
 
 ```bash
 carina --data DIR --decisions DIR refresh market   # stops for review with exit status 2
+carina --data DIR --decisions DIR refresh sec      # scans submissions, fetches facts only when needed
 carina --data DIR --decisions DIR macro refresh
 carina --data DIR verify
 carina sync push company --drive-root-id ID        # fast-forward only
@@ -59,13 +59,16 @@ carina sync push company --drive-root-id ID        # fast-forward only
 Drive access uses `GOOGLE_SERVICE_ACCOUNT_JSON` when set, otherwise
 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REFRESH_TOKEN`. A service
 account cannot create files in a personal Google Drive, only update existing ones.
+SEC refreshes require `SEC_CONTACT_EMAIL`; it is included in the declared
+User-Agent for fair-access identification and is not retained in datasets or
+receipts.
 
 ## Layout
 
 | Module | Role |
 | --- | --- |
 | `dataset` | Company dataset format: Hive-partitioned parquet, a manifest with per-file hashes and lineage, verified promotion |
-| `refresh` | Resumable market refresh: plan, collect, inspect, build, verify, promote |
+| `refresh`, `sec_refresh` | Resumable market and SEC refreshes: plan, collect, inspect, build, verify, promote |
 | `store`, `updates` | Capture, build and verify; selective expansion |
 | `fundamentals`, `registry`, `profiles` | SEC fact normalization, company identity, accounting profiles |
 | `quality`, `market_quality`, `audit` | Evidence-bound quality flags and audits |
