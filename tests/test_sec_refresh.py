@@ -149,6 +149,9 @@ def test_collect_scans_every_company_and_fetches_facts_only_for_new_filing(built
     assert limiter.calls == 3
     assert set(state["captures"]) == {"AAPL"}
     assert state["scans"]["AAPL"]["new_accessions"] == [accession]
+    assert "filings" not in state["scans"]["AAPL"]
+    assert "filings" not in state["scans"]["MSFT"]
+    assert state["captures"]["AAPL"]["filings"]
     assert not list((root / store.RUNS / "sec-test").glob("*.json"))
     assert not list((root / store.RUNS / "sec-test").glob("*AAPL*"))
 
@@ -194,6 +197,22 @@ def test_stage_identity_is_bound_to_compact_source_and_projection_hashes():
     assert sec_refresh.identity(state) == original
     state["captures"]["AAPL"]["projection_sha256"] = "d" * 64
     assert sec_refresh.identity(state) != original
+
+
+def test_compact_keeps_only_filing_projection_awaiting_capture():
+    state = {
+        "scans": {
+            "AAPL": {"new_accessions": ["new"], "filings": [{"a": 1}]},
+            "MSFT": {"new_accessions": [], "filings": [{"m": 1}]},
+            "JPM": {"new_accessions": ["new"], "filings": [{"j": 1}]},
+        },
+        "captures": {"AAPL": {"filings": [{"a": 1}]}},
+    }
+    assert sec_refresh.compact(state)
+    assert "filings" not in state["scans"]["AAPL"]
+    assert "filings" not in state["scans"]["MSFT"]
+    assert state["scans"]["JPM"]["filings"] == [{"j": 1}]
+    assert not sec_refresh.compact(state)
 
 
 def test_build_envelope_reuses_pinned_scan_baseline(built, monkeypatch):

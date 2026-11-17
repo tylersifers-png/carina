@@ -111,6 +111,23 @@ def identity(state):
     )
 
 
+def compact(state):
+    """Discard filing projections once they are no longer needed for capture.
+
+    The submissions receipt and accession list are sufficient evidence for an
+    unchanged issuer.  A changed issuer's complete filing projection moves into
+    its capture before the scan copy is removed.  This keeps resumability while
+    avoiding a checkpoint dominated by hundreds of unchanged filing histories.
+    """
+    changed = False
+    captures = state["captures"]
+    for symbol, scan in state["scans"].items():
+        if "filings" in scan and (not scan["new_accessions"] or symbol in captures):
+            scan.pop("filings")
+            changed = True
+    return changed
+
+
 def _baseline(root, plan):
     return refresh.baseline(root, plan)
 
@@ -176,6 +193,7 @@ def _new_filings(filings, stored):
 def collect(root, run_id, *, fetch=None, limiter=None):
     """Checkpoint submissions scans and selected companyfacts projections."""
     state = load(root, run_id)
+    compact(state)
     _baseline(root, state["scan_plan"])
     if fetch is None:
         user_agent = store.sec_user_agent(require_contact=True)
@@ -198,10 +216,11 @@ def collect(root, run_id, *, fetch=None, limiter=None):
             new = _new_filings(filings, stored.get(symbol, {}))
             state["scans"][symbol] = {
                 "issuer_metadata": issuer,
-                "filings": filings,
                 "receipt": receipt,
                 "new_accessions": [row["accessionNumber"] for row in new],
             }
+            if new:
+                state["scans"][symbol]["filings"] = filings
             state["errors"].pop(symbol, None)
             state["collected_at"] = sec.now()
             save(root, run_id, state)
@@ -222,6 +241,7 @@ def collect(root, run_id, *, fetch=None, limiter=None):
                     "facts": receipt,
                 },
             }
+            scan.pop("filings")
             state["errors"].pop(symbol, None)
             state["collected_at"] = sec.now()
             save(root, run_id, state)
