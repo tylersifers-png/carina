@@ -57,6 +57,10 @@ def legacy_stage_file(root, run_id):
     return refresh.run_dir(root, run_id) / "sec-stage.json.bz2"
 
 
+def review_file(root, run_id):
+    return refresh.run_dir(root, run_id) / "sec-review.json"
+
+
 def stage_exists(root, run_id):
     return stage_file(root, run_id).exists() or legacy_stage_file(root, run_id).exists()
 
@@ -382,12 +386,16 @@ def run(root, run_id=None, *, symbols=None, fetch=None, limiter=None):
         if "Existing SEC fact revised" not in str(exc):
             raise
         state = load(root, run_id)
-        state["review"] = {
-            "status": "NEEDS_REVIEW",
-            "reason": str(exc),
-            "stage_sha256": identity(state),
-        }
-        save(root, run_id, state)
+        store.replace_generated(
+            review_file(root, run_id),
+            sec.encoded(
+                {
+                    "status": "NEEDS_REVIEW",
+                    "reason": str(exc),
+                    "stage_sha256": identity(state),
+                }
+            ),
+        )
         print("SEC_REVIEW_REQUIRED: " + str(exc))
         return STOPPED
     receipt = promote(root, run_id, candidate)

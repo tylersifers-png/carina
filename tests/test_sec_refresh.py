@@ -273,8 +273,9 @@ def test_run_returns_two_and_keeps_checkpoint_when_history_needs_review(
         limiter=NoWait(),
     )
     assert result == 2
-    state = sec_refresh.load(root, "sec-review")
-    assert state["review"]["status"] == "NEEDS_REVIEW"
+    review = json.loads(sec_refresh.review_file(root, "sec-review").read_bytes())
+    assert review["status"] == "NEEDS_REVIEW"
+    assert "review" not in sec_refresh.load(root, "sec-review")
 
 
 def test_new_filing_builds_verifies_and_promotes_without_market_fetch(built):
