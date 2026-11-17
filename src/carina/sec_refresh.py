@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import bz2
+from copy import deepcopy
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -228,9 +229,8 @@ def envelope(root, state):
         refresh_financials=True,
         refresh_market=False,
     )
-    plan = updates.snapshot(root, request, planned_at=state["scan_plan"]["planned_at"])
-    if plan["base"]["manifest_sha256"] != state["scan_plan"]["base"]["manifest_sha256"]:
-        raise ValueError("The staged dataset changed since this run was planned")
+    plan = deepcopy(state["scan_plan"])
+    plan["request"] = request
     content = {
         "schema": updates.SCHEMA,
         "plan": plan,

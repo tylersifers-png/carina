@@ -85,6 +85,21 @@ def _facts(symbol, accession):
     }
 
 
+def _capture_item(symbol, accession):
+    facts = store.project_companyfacts(symbol, _facts(symbol, accession))
+    issuer, filings = store.project_submissions(symbol, _submissions(symbol, accession))
+    return {
+        "issuer_metadata": issuer,
+        "filings": filings,
+        "facts": facts,
+        "projection_sha256": sec.digest(sec.encoded(facts)),
+        "receipts": {
+            "submissions": _receipt(symbol, "submissions"),
+            "facts": _receipt(symbol, "facts"),
+        },
+    }
+
+
 class NoWait:
     def __init__(self):
         self.calls = 0
@@ -178,6 +193,24 @@ def test_stage_identity_is_bound_to_compact_source_and_projection_hashes():
     assert sec_refresh.identity(state) == original
     state["captures"]["AAPL"]["projection_sha256"] = "d" * 64
     assert sec_refresh.identity(state) != original
+
+
+def test_build_envelope_reuses_pinned_scan_baseline(built, monkeypatch):
+    root = _verified_store(built)
+    sec_refresh.initialize(root, "sec-envelope", ["AAPL", "MSFT"])
+    state = sec_refresh.load(root, "sec-envelope")
+    state["captures"] = {"AAPL": _capture_item("AAPL", "0000320193-26-000126")}
+
+    monkeypatch.setattr(
+        updates,
+        "snapshot",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("Envelope must reuse the pinned scan baseline")
+        ),
+    )
+    content = sec_refresh.envelope(root, state)
+    assert content["plan"]["base"] == state["scan_plan"]["base"]
+    assert content["plan"]["request"]["companies"] == ["AAPL"]
 
 
 def test_rate_limiter_enforces_tenth_second_between_request_starts():
