@@ -10,6 +10,8 @@ Commands:
     sync status|pull|push company|macro
                             fast-forward-only Drive sync of a staged dataset
     drive download|upload   non-destructive Drive sync of explicit paths
+    export SOURCE... --out DIR
+                            write parquet files or datasets as CSV for scratch analysis
 
 ``--data`` (or ``CARINA_DATA``) is the directory holding ``staged/``, ``runs/``
 and ``receipts/``. ``--decisions`` (or ``CARINA_DECISIONS``) holds the decision
@@ -69,6 +71,12 @@ def _drive(argv):
     return drive.main(argv)
 
 
+def _export(argv):
+    from carina import export
+
+    return export.main(argv)
+
+
 COMMANDS = {
     "refresh": _refresh,
     "collect": _store("collect"),
@@ -78,6 +86,7 @@ COMMANDS = {
     "audit": _audit,
     "sync": _sync,
     "drive": _drive,
+    "export": _export,
 }
 
 

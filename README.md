@@ -54,7 +54,15 @@ carina --data DIR --decisions DIR refresh sec      # scans submissions, fetches 
 carina --data DIR --decisions DIR macro refresh
 carina --data DIR verify
 carina sync push company --drive-root-id ID        # fast-forward only
+carina export staged/macro --out DIR --limit 1000  # parquet to CSV for scratch analysis
 ```
+
+`carina export` writes each parquet file or dataset folder as `NAME.csv` plus
+`NAME.schema.json` (column types, row counts, sizes and SHA-256 of each part). Dates
+and timestamps are ISO 8601, decimals and integers are exact, nested values are JSON
+text. Options: `--columns`, `--limit` (first N rows), `--max-mb` (split into parts)
+and `--overwrite`. A folder must hold files of one schema; export mixed folders as
+separate files or subfolders. The source is never changed.
 
 Drive access uses `GOOGLE_SERVICE_ACCOUNT_JSON` when set, otherwise
 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_REFRESH_TOKEN`. A service
@@ -74,6 +82,7 @@ receipts.
 | `quality`, `market_quality`, `audit` | Evidence-bound quality flags and audits |
 | `macro` | Macro series and their revisions |
 | `sync`, `drive` | Fast-forward-only Drive sync by lineage; the narrow Drive client |
+| `export` | Parquet files or datasets as exact CSV with a schema file |
 | `settings` | The data and decisions directories, and the decision files |
 
 There is no license, and no one else is expected to use this code.
